@@ -77,5 +77,4 @@ CO₂ and fuel totals over a time window are obtained by integrating the corresp
 - All highD `Car` records are treated as Honda Civic-like LDVs; all `Truck` records as International 9800 SBA HDDTs.
 - HDDT fuel map coefficients ($\alpha_0, \alpha_1, \alpha_2$) reuse the LDV set as a conservative placeholder. The study focuses on relative marginal emission costs across behaviors/events rather than absolute fleet inventories.
 - Road grade is assumed zero (flat highway); no gear-shift dynamics are modeled.
-- VT-Micro (`vt_micro.py`) remains only for legacy/benchmarking purposes; the main pipeline uses VT-CPFM fields (`cpf_*`).
 - Future work can replace HDDT fuel coefficients with calibrated heavy-duty VT-CPFM values once available, improving absolute emission estimates without changing the pipeline API.

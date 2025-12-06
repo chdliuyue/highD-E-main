@@ -55,20 +55,6 @@ ACC_SMOOTH_THRESH: float = 0.5
 BASELINE_WINDOW_TIME: float = 8.0
 BASELINE_WINDOW_STEP_TIME: float = 4.0
 
-# VT-Micro placeholder coefficients
-VT_MICRO_COEFFS = {
-    "Car": {
-        "fuel": {(0, 0): -0.3, (1, 0): 0.02, (0, 1): 0.03, (1, 1): 0.0002},
-        "co2": {(0, 0): 0.5, (1, 0): 0.05, (0, 1): 0.06},
-        "nox": {(0, 0): 0.05, (1, 0): 0.01, (0, 1): 0.008},
-    },
-    "Truck": {
-        "fuel": {(0, 0): -0.2, (1, 0): 0.03, (0, 1): 0.04, (1, 1): 0.0003},
-        "co2": {(0, 0): 0.6, (1, 0): 0.06, (0, 1): 0.07},
-        "nox": {(0, 0): 0.06, (1, 0): 0.015, (0, 1): 0.012},
-    },
-}
-
 # Mapping helpers
 VEHICLE_TYPE_MAP = {"Car": "Car", "Truck": "Truck"}
 # Encoding used for numeric vehicle class representation in master table
@@ -97,7 +83,6 @@ __all__ = [
     "VEHICLE_MASS_TRUCK",
     "GRAVITY",
     "ROAD_GRADE",
-    "VT_MICRO_COEFFS",
     "VEHICLE_TYPE_MAP",
     "FRAME_RATE_DEFAULT",
     "TTC_CONF_THRESH",
