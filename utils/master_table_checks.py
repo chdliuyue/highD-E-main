@@ -12,8 +12,45 @@ import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PROCESSED_PARQUET = PROJECT_ROOT / "data/processed/highD/data/L1_master_frame.parquet"
-RAW_DATA_DIR = PROJECT_ROOT / "data/raw/highD/data"
+def _resolve_processed_parquet() -> Path:
+    """Return path to the processed parquet, accounting for per-recording folders.
+
+    Older pipelines produced a single parquet at ``data/processed/highD/data`` while
+    newer runs place one parquet per recording inside ``recording_XX`` directories.
+    This helper finds the first existing parquet so tests and scripts can run
+    without manual path tweaks.
+    """
+
+    default_path = PROJECT_ROOT / "data/processed/highD/data/L1_master_frame.parquet"
+    if default_path.exists():
+        return default_path
+
+    # Fall back to the first parquet inside a recording_* folder, if any exist.
+    for candidate in sorted(
+        PROJECT_ROOT.glob("data/processed/highD/data/recording_*/L1_master_frame.parquet")
+    ):
+        return candidate
+
+    # Nothing found; return the default location so error messages remain familiar.
+    return default_path
+
+
+def _resolve_raw_data_dir() -> Path:
+    """Return path to raw data, handling optional recording subdirectories."""
+
+    default_dir = PROJECT_ROOT / "data/raw/highD/data"
+    if default_dir.exists():
+        return default_dir
+
+    for candidate in sorted(PROJECT_ROOT.glob("data/raw/highD/data/recording_*")):
+        if candidate.is_dir():
+            return candidate
+
+    return default_dir
+
+
+PROCESSED_PARQUET = _resolve_processed_parquet()
+RAW_DATA_DIR = _resolve_raw_data_dir()
 
 
 def load_master_table(columns: Optional[Sequence[str]] = None) -> pd.DataFrame:
