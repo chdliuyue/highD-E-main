@@ -119,4 +119,4 @@
 
 ---
 
-> 本 `data_dictionary.md` 可作为 highD 数据预处理、论文“数据描述”章节以及代码文档的基础说明文件，如需扩展自定义字段（如统一后的纵向坐标 `s_long`、平滑速度 `v_long_smooth`、VT-Micro 排放率等），建议在本文件后追加“派生变量（Derived Features）”章节进行说明。
+> 本 `data_dictionary.md` 可作为 highD 数据预处理、论文“数据描述”章节以及代码文档的基础说明文件，如需扩展自定义字段（如统一后的纵向坐标 `s_long`、平滑速度 `v_long_smooth`、VT-CPFM 排放功率/燃油/CO₂率等），建议在本文件后追加“派生变量（Derived Features）”章节进行说明。

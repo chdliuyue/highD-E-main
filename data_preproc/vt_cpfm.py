@@ -9,9 +9,6 @@ mirror the documentation in ``docs/vt_cpfm_model.md``:
   physical parameters; fuel map coefficients currently reuse LDV coefficients as
   a simplifying assumption pending HDDT-specific calibration.
 - Carbon factors (g/L): U.S. EPA (2021) for gasoline and diesel.
-
-VT-Micro remains available in ``vt_micro.py`` for legacy comparisons only; the
-primary pipeline should consume the ``cpf_*`` outputs from this module.
 """
 from __future__ import annotations
 
