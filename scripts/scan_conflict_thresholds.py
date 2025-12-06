@@ -5,11 +5,18 @@ constructs conflict events per recording using the parameterized builder, and
 summarizes aggregate statistics for each configuration.
 """
 
+import sys
 from pathlib import Path
 from statistics import median
 from typing import Iterable, List
 
 import pandas as pd
+
+# Ensure project root is on the import path when the script is executed from
+# outside the repository root (e.g., ``python scripts/scan_conflict_thresholds.py``).
+PROJECT_ROOT_PATH = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT_PATH) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT_PATH))
 
 from config import FRAME_RATE_DEFAULT, PROJECT_ROOT
 from data_preproc.events import build_conflict_events_param
