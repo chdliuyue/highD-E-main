@@ -1,4 +1,9 @@
-"""L2 event construction for conflict and baseline segments using VT-CPFM rates."""
+"""L2 event construction for high-interaction (conflict) and baseline segments.
+
+The "conflict" events in this module follow a *wide* high-interaction definition
+tailored for energy/emissions analysis (not strict safety conflicts). See
+``build_high_interaction_events`` for details.
+"""
 from __future__ import annotations
 
 from typing import Dict, List, Tuple
@@ -72,19 +77,33 @@ def _count_lane_changes(lanes: pd.Series) -> int:
     return int(max(changes, 0))
 
 
-def _build_conflict_events_internal(
+def build_high_interaction_events(
     df_l1: pd.DataFrame,
     frame_rate: float,
-    ttc_conf_thresh: float,
-    min_conf_dur: float,
-    pre_event_time: float,
-    post_event_time: float,
+    ttc_upper: float = 4.0,
+    min_conf_duration: float = 0.4,
+    pre_event_time: float = config.PRE_EVENT_TIME,
+    post_event_time: float = config.POST_EVENT_TIME,
+    speed_min: float = 15.0,
+    accel_threshold: float = 0.5,
 ) -> pd.DataFrame:
-    """Shared implementation for constructing conflict events.
+    """Detect high-interaction (wide conflict) episodes from L1 trajectories.
 
-    This helper is used by both :func:`build_conflict_events` (config-driven) and
-    :func:`build_conflict_events_param` (fully parameterized) to avoid code
-    duplication while supporting different threshold sources.
+    Criteria
+    --------
+    - Continuous TTC < ``ttc_upper`` lasting at least ``min_conf_duration``
+      defines the core segment ``[conf_start_frame, conf_end_frame]``.
+    - Within the event window (core padded by ``pre_event_time`` and
+      ``post_event_time`` seconds):
+      * max ``v_long_smooth`` > ``speed_min``
+      * min ``a_long_smooth`` < -``accel_threshold`` or max ``a_long_smooth`` >
+        ``accel_threshold``
+
+    Returns
+    -------
+    pd.DataFrame
+        Event table including core/window frames, duration, TTC summaries, and
+        energy metrics (``E_cpf_CO2``/``E_cpf_fuel``).
     """
 
     events: List[Dict] = []
@@ -94,7 +113,7 @@ def _build_conflict_events_internal(
         df_grp = df_grp.sort_values("frame")
         frames = df_grp["frame"].to_numpy()
         ttc = df_grp["TTC"].to_numpy()
-        mask_conflict = ttc < ttc_conf_thresh
+        mask_conflict = ttc < ttc_upper
         segments = find_contiguous_segments(mask_conflict, frames)
 
         if not segments:
@@ -106,7 +125,7 @@ def _build_conflict_events_internal(
 
         for conf_start, conf_end in segments:
             conf_duration = (conf_end - conf_start + 1) / frame_rate
-            if conf_duration < min_conf_dur:
+            if conf_duration < min_conf_duration:
                 continue
 
             start_frame = max(min_frame, conf_start - pre_frames)
@@ -116,8 +135,23 @@ def _build_conflict_events_internal(
             window_df = df_grp.loc[window_mask]
             conf_df = df_grp[(df_grp["frame"] >= conf_start) & (df_grp["frame"] <= conf_end)]
 
-            start_time = float(window_df.iloc[0]["time"]) if not window_df.empty else start_frame / frame_rate
-            end_time = float(window_df.iloc[-1]["time"]) if not window_df.empty else end_frame / frame_rate
+            if window_df.empty or conf_df.empty:
+                continue
+
+            # Velocity and acceleration conditions within the padded window
+            if window_df["v_long_smooth"].max() <= speed_min:
+                continue
+            if (window_df["a_long_smooth"].min() >= -accel_threshold) and (
+                window_df["a_long_smooth"].max() <= accel_threshold
+            ):
+                continue
+
+            if "time" in window_df.columns and window_df["time"].notna().any():
+                start_time = float(window_df.iloc[0]["time"])
+                end_time = float(window_df.iloc[-1]["time"])
+            else:
+                start_time = start_frame / frame_rate
+                end_time = end_frame / frame_rate
 
             events.append(
                 {
@@ -132,13 +166,13 @@ def _build_conflict_events_internal(
                     "conf_start_frame": int(conf_start),
                     "conf_end_frame": int(conf_end),
                     "conf_duration": float(conf_duration),
-                    "min_TTC": float(window_df["TTC"].min()) if not window_df.empty else float("nan"),
-                    "min_TTC_conf": float(conf_df["TTC"].min()) if not conf_df.empty else float("nan"),
+                    "min_TTC": float(window_df["TTC"].min()),
+                    "min_TTC_conf": float(conf_df["TTC"].min()),
                     "max_DRAC": float(conf_df["DRAC"].max()) if "DRAC" in conf_df else float("nan"),
                     "veh_class": df_grp.iloc[0].get("veh_class"),
-                    "mean_speed": float(window_df["v_long_smooth"].mean()) if not window_df.empty else float("nan"),
-                    "max_decel": float(window_df["a_long_smooth"].min()) if not window_df.empty else float("nan"),
-                    "max_accel": float(window_df["a_long_smooth"].max()) if not window_df.empty else float("nan"),
+                    "mean_speed": float(window_df["v_long_smooth"].mean()),
+                    "max_decel": float(window_df["a_long_smooth"].min()),
+                    "max_accel": float(window_df["a_long_smooth"].max()),
                     "num_lane_changes": _count_lane_changes(window_df.get("laneId_raw", pd.Series(dtype=float))),
                     "E_cpf_CO2": _integrate_rate(
                         window_df.get("cpf_co2_rate_gps", pd.Series(dtype=float)), frame_rate
@@ -163,11 +197,34 @@ def _build_conflict_events_internal(
         "num_lane_changes": "int32",
     }
 
-    df_events = pd.DataFrame(events)
-    if df_events.empty:
-        return pd.DataFrame(columns=dtype_map.keys())
+    columns = [
+        "event_id",
+        "recordingId",
+        "ego_id",
+        "start_frame",
+        "end_frame",
+        "start_time",
+        "end_time",
+        "duration",
+        "conf_start_frame",
+        "conf_end_frame",
+        "conf_duration",
+        "min_TTC",
+        "min_TTC_conf",
+        "max_DRAC",
+        "veh_class",
+        "mean_speed",
+        "max_decel",
+        "max_accel",
+        "num_lane_changes",
+        "E_cpf_CO2",
+        "E_cpf_fuel",
+        "E_vsp_CO2",
+        "E_vsp_NOx",
+    ]
 
-    return df_events.astype(dtype_map)
+    df_events = pd.DataFrame(events, columns=columns)
+    return df_events.astype({k: v for k, v in dtype_map.items() if k in df_events.columns})
 
 
 def build_conflict_events_param(
@@ -178,43 +235,26 @@ def build_conflict_events_param(
     pre_event_time: float,
     post_event_time: float,
 ) -> pd.DataFrame:
-    """Construct L2 conflict events with parameterized thresholds.
+    """Backward-compatible wrapper for high-interaction event construction."""
 
-    This variant mirrors :func:`build_conflict_events` but accepts thresholds and
-    buffer durations explicitly, making it suitable for grid searches.
-    """
-
-    return _build_conflict_events_internal(
+    return build_high_interaction_events(
         df_l1=df_l1,
         frame_rate=frame_rate,
-        ttc_conf_thresh=ttc_conf_thresh,
-        min_conf_dur=min_conf_dur,
+        ttc_upper=ttc_conf_thresh,
+        min_conf_duration=min_conf_dur,
         pre_event_time=pre_event_time,
         post_event_time=post_event_time,
     )
 
 
 def build_conflict_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFrame:
-    """Construct L2 conflict events using TTC-based segments.
+    """Construct high-interaction (wide conflict) events using config defaults."""
 
-    Parameters
-    ----------
-    df_l1:
-        L1 master frame dataframe for a single recording.
-    frame_rate:
-        Frame rate (Hz) used to convert frames to seconds.
-
-    Returns
-    -------
-    pd.DataFrame
-        Conflict events table with expanded pre/post windows and summary metrics.
-    """
-
-    return _build_conflict_events_internal(
+    return build_high_interaction_events(
         df_l1=df_l1,
         frame_rate=frame_rate,
-        ttc_conf_thresh=config.TTC_CONF_THRESH,
-        min_conf_dur=config.MIN_CONFLICT_DURATION,
+        ttc_upper=config.TTC_CONF_THRESH,
+        min_conf_duration=config.MIN_CONFLICT_DURATION,
         pre_event_time=config.PRE_EVENT_TIME,
         post_event_time=config.POST_EVENT_TIME,
     )
@@ -299,6 +339,7 @@ def build_baseline_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFram
 
 __all__ = [
     "find_contiguous_segments",
+    "build_high_interaction_events",
     "build_conflict_events",
     "build_conflict_events_param",
     "build_baseline_events",

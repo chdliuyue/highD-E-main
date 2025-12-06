@@ -1,4 +1,4 @@
-"""Build L2 conflict and baseline events for specified recordings."""
+"""Build L2 high-interaction (conflict) and baseline events for recordings."""
 from __future__ import annotations
 
 import argparse
@@ -13,9 +13,17 @@ from data_preproc.events import build_baseline_events, build_conflict_events
 
 
 def build_for_recording(rec_id: int, frame_rate: float = FRAME_RATE_DEFAULT) -> None:
-    """Build L2 events for a single recording id."""
+    """Build L2 events for a single recording id using the high-interaction definition."""
 
-    l1_path = PROJECT_ROOT / "data" / "processed" / "highD" / "data" / f"recording_{rec_id:02d}" / "L1_master_frame.parquet"
+    l1_path = (
+        PROJECT_ROOT
+        / "data"
+        / "processed"
+        / "highD"
+        / "data"
+        / f"recording_{rec_id:02d}"
+        / "L1_master_frame.parquet"
+    )
     if not l1_path.exists():
         raise FileNotFoundError(f"L1 master frame not found for recording {rec_id:02d} at {l1_path}")
 
@@ -37,7 +45,12 @@ def build_for_recording(rec_id: int, frame_rate: float = FRAME_RATE_DEFAULT) -> 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build L2 events for specified recordings")
-    parser.add_argument("--recording", type=int, default=1, help="Recording id to process (e.g., 1)")
+    parser.add_argument(
+        "--recordings",
+        type=str,
+        default="1",
+        help="Comma-separated recording ids to process (e.g., '1,2,3')",
+    )
     parser.add_argument(
         "--frame_rate",
         type=float,
@@ -49,7 +62,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    build_for_recording(args.recording, frame_rate=args.frame_rate)
+    rec_ids = [int(r.strip()) for r in args.recordings.split(",") if r.strip()]
+    for rec_id in rec_ids:
+        build_for_recording(rec_id, frame_rate=args.frame_rate)
 
 
 if __name__ == "__main__":
