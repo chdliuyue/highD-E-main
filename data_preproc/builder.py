@@ -91,7 +91,10 @@ class HighDDataBuilder:
         meta = tracks_meta.rename(columns={"id": C.track_id, "class": C.veh_class})[
             [C.track_id, C.veh_class, "drivingDirection", "width", "height"]
         ]
-        meta[C.veh_class] = meta[C.veh_class].map(config.VEHICLE_CLASS_ENCODING).astype("Int8")
+        mapped_classes = meta[C.veh_class].map(config.VEHICLE_CLASS_ENCODING)
+        meta[C.veh_class] = pd.to_numeric(mapped_classes.fillna(meta[C.veh_class]), errors="coerce").astype(
+            "Int8"
+        )
         df = df.merge(meta, on=C.track_id, how="left")
         df[C.driving_direction] = df["drivingDirection"].astype(np.int8)
         df[C.veh_class] = df[C.veh_class].astype("Int8")
