@@ -63,9 +63,9 @@ def test_can_load_master_table(master_df):
 def test_required_columns_present(master_df):
     missing = REQUIRED_COLUMNS - set(master_df.columns)
     assert not missing, f"Missing required columns: {missing}"
-    has_vtm = any(col.startswith("vtm_") for col in master_df.columns)
+    has_cpf = any(col.startswith("cpf_") for col in master_df.columns)
     has_vsp = any(col.startswith("vsp_") for col in master_df.columns)
-    assert has_vtm, "VT-Micro fields (vtm_*) should exist"
+    assert has_cpf, "VT-CPFM fields (cpf_*) should exist"
     assert has_vsp, "VSP fields (vsp_*) should exist"
 
 
@@ -98,8 +98,8 @@ def test_nan_ratios(master_df):
         "TTC",
         "DRAC",
         "risk_level",
-        "vtm_co2_rate",
-        "vtm_nox_rate",
+        "cpf_co2_rate_gps",
+        "cpf_fuel_rate_lps",
         "vsp_co2_rate",
         "vsp_nox_rate",
     ]
@@ -155,13 +155,25 @@ def test_headway_and_ttc(master_df):
 
 @pytest.mark.physics
 def test_emissions_non_negative(master_df):
-    fields = ["vtm_co2_rate", "vtm_nox_rate", "vsp_co2_rate", "vsp_nox_rate"]
+    fields = ["cpf_co2_rate_gps", "cpf_fuel_rate_lps", "vsp_co2_rate", "vsp_nox_rate"]
     summary = emission_field_checks(master_df, fields)
     if not summary:
         pytest.skip("No emission fields present")
     for field, stats in summary.items():
         assert stats["neg_ratio"] <= 1e-3, f"Too many negative values in {field}: {stats['neg_ratio']:.4f}"
         assert not stats.get("exceeds_max", False), f"Extreme values in {field}: {stats['max']:.2e}"
+
+
+@pytest.mark.physics
+def test_cpf_co2_rate_reasonable(master_df):
+    field = "cpf_co2_rate_gps"
+    if field not in master_df.columns:
+        pytest.skip("cpf_co2_rate_gps missing")
+    series = master_df[field].dropna()
+    if series.empty:
+        pytest.skip("No cpf_co2_rate_gps samples available")
+    neg_ratio = (series < 0).mean()
+    assert neg_ratio < 1e-3, f"Negative CO2 rates appear too often ({neg_ratio:.4f})"
 
 
 @pytest.mark.raw_alignment

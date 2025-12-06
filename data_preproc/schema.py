@@ -59,9 +59,9 @@ class Columns:
     vehicle_type: str = "vehicle_type"
     v_kmh: str = "v_kmh"
     a_kmhps: str = "a_kmhps"
-    vtm_fuel_rate: str = "vtm_fuel_rate"
-    vtm_co2_rate: str = "vtm_co2_rate"
-    vtm_nox_rate: str = "vtm_nox_rate"
+    cpf_power_kw: str = "cpf_power_kw"
+    cpf_fuel_rate_lps: str = "cpf_fuel_rate_lps"
+    cpf_co2_rate_gps: str = "cpf_co2_rate_gps"
     vsp_value: str = "vsp_value"
     vsp_co2_rate: str = "vsp_co2_rate"
     vsp_nox_rate: str = "vsp_nox_rate"
@@ -121,9 +121,9 @@ def column_order() -> List[str]:
         c.vehicle_type,
         c.v_kmh,
         c.a_kmhps,
-        c.vtm_fuel_rate,
-        c.vtm_co2_rate,
-        c.vtm_nox_rate,
+        c.cpf_power_kw,
+        c.cpf_fuel_rate_lps,
+        c.cpf_co2_rate_gps,
         c.vsp_value,
         c.vsp_co2_rate,
         c.vsp_nox_rate,

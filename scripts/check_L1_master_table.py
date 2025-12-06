@@ -87,7 +87,7 @@ def report_physics(df: pd.DataFrame, random_state: int = 42, sample_n: int = 5) 
 def report_emissions(df: pd.DataFrame) -> None:
     """Print emission/energy field statistics."""
     print_header("Emission & energy metrics")
-    fields = ["vtm_co2_rate", "vtm_nox_rate", "vsp_co2_rate", "vsp_nox_rate"]
+    fields = ["cpf_fuel_rate_lps", "cpf_co2_rate_gps", "vsp_co2_rate", "vsp_nox_rate"]
     summary = emission_field_checks(df, fields)
     if not summary:
         print("No emission fields found.")

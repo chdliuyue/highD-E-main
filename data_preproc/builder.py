@@ -11,7 +11,7 @@ import pandas as pd
 import config
 from data_preproc.io_highd import load_recording_meta, load_tracks, load_tracks_meta
 from data_preproc.schema import Columns, column_order
-from data_preproc.vt_micro import compute_vtmicro_for_df, load_vtmicro_coeffs
+from data_preproc.vt_cpfm import apply_vt_cpfm_to_df
 from data_preproc.vsp import vsp_emissions
 from utils.misc import apply_savgol_by_group, compute_drac, ensure_directory, safe_divide
 
@@ -25,7 +25,6 @@ class HighDDataBuilder:
         self.raw_data_dir = raw_data_dir
         self.output_dir = output_dir
         self.num_workers = max(int(num_workers), 1)
-        self.vt_micro_coeffs = load_vtmicro_coeffs()
 
     def process_all_recordings(self, recording_ids: Optional[List[int]] = None) -> None:
         """Process multiple recordings sequentially or in parallel."""
@@ -56,7 +55,7 @@ class HighDDataBuilder:
         df = self._smooth_kinematics(df)
         df = self._compute_interactions(df)
         df = self._compute_safety_metrics(df, config.RECOMPUTE_SAFETY_METRICS)
-        df = self._compute_emissions_vt_micro(df)
+        df = self._compute_emissions_vt_cpfm(df)
         df = self._compute_emissions_vsp(df)
         df = self._add_visual_coordinates(df, rec_meta)
 
@@ -167,13 +166,10 @@ class HighDDataBuilder:
         df[C.risk_level] = df[C.risk_level].astype(np.int8)
         return df
 
-    def _compute_emissions_vt_micro(self, df: pd.DataFrame) -> pd.DataFrame:
-        vehicle_cat_mapping = {
-            **{k: "LDV" for k in ["Car", config.VEHICLE_CLASS_DECODING.get(1, "Car")]},
-            **{k: "LDT" for k in ["Truck", config.VEHICLE_CLASS_DECODING.get(2, "Truck")]},
-            **{1: "LDV", 2: "LDT"},
-        }
-        df = compute_vtmicro_for_df(df, self.vt_micro_coeffs, vehicle_cat_mapping=vehicle_cat_mapping)
+    def _compute_emissions_vt_cpfm(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Compute VT-CPFM power, fuel, and CO2 rates for each frame."""
+
+        df = apply_vt_cpfm_to_df(df)
         return df
 
     def _compute_emissions_vsp(self, df: pd.DataFrame) -> pd.DataFrame:
