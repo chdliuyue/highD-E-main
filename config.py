@@ -1,13 +1,15 @@
-"""Global configuration for highD preprocessing pipeline."""
+"""Global configuration for the highD preprocessing project."""
 from pathlib import Path
 from typing import List
+
+PROJECT_ROOT: Path = Path(__file__).resolve().parent
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-RAW_DATA_DIR: Path = Path("data/raw/highD/data")
-OUTPUT_PARQUET_DIR: Path = Path("data/processed/highD/output_parquet")
-HIGHWAY_IMAGE_DIR: Path = Path("data/raw/highD/data")
+RAW_DATA_DIR: Path = PROJECT_ROOT / "data" / "raw" / "highD" / "data"
+PROCESSED_DATA_DIR: Path = PROJECT_ROOT / "data" / "processed" / "highD" / "data"
+HIGHWAY_IMAGE_DIR: Path = RAW_DATA_DIR
 
 # ---------------------------------------------------------------------------
 # Processing options
@@ -53,3 +55,28 @@ VT_MICRO_COEFFS = {
 # Mapping helpers
 VEHICLE_TYPE_MAP = {"Car": "Car", "Truck": "Truck"}
 
+__all__ = [
+    "PROJECT_ROOT",
+    "RAW_DATA_DIR",
+    "PROCESSED_DATA_DIR",
+    "HIGHWAY_IMAGE_DIR",
+    "TEST_MODE",
+    "TEST_RECORDINGS",
+    "NUM_WORKERS",
+    "MAX_RECORDING_ID",
+    "RECOMPUTE_SAFETY_METRICS",
+    "TTC_HIGH_RISK",
+    "TTC_LOW_RISK",
+    "DRAC_HIGH_RISK",
+    "SAVGOL_WINDOW",
+    "SAVGOL_POLY",
+    "AIR_RESIST_COEFF",
+    "ROLLING_RESIST_COEFF",
+    "DRIVETRAIN_LOSS_COEFF",
+    "VEHICLE_MASS_CAR",
+    "VEHICLE_MASS_TRUCK",
+    "GRAVITY",
+    "ROAD_GRADE",
+    "VT_MICRO_COEFFS",
+    "VEHICLE_TYPE_MAP",
+]
