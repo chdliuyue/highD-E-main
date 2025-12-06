@@ -5,21 +5,11 @@ from pathlib import Path
 from typing import List, Optional, Sequence
 
 import config
-from data_preproc.builder import HighDDataBuilder
+from data_preproc.l1_builder import L1Builder
 
 
 def parse_recording_ids_arg(arg: Optional[str]) -> Optional[List[int]]:
-    """Parse a comma-separated recordings argument from the CLI.
-
-    Args:
-        arg: A comma-separated list of recording identifiers (e.g., "01,02"),
-            the string "all" (case-insensitive), or ``None`` to defer to
-            configuration defaults.
-
-    Returns:
-        A list of integer recording identifiers when provided or ``None`` when
-        no override was supplied.
-    """
+    """Parse a comma-separated recordings argument from the CLI."""
 
     if arg is None:
         return None
@@ -50,16 +40,7 @@ def _resolve_recording_ids(recording_ids: Optional[Sequence[int]]) -> List[int]:
 def run_preprocessing(
     recording_ids: Optional[Sequence[int]] = None, num_workers: Optional[int] = None
 ) -> None:
-    """Build master tables and derived L1 artifacts for the selected recordings.
-
-    Args:
-        recording_ids: Optional sequence of recording identifiers to process. If
-            omitted or empty, defaults to ``TEST_RECORDINGS`` when
-            ``TEST_MODE`` is enabled or all recordings otherwise.
-        num_workers: Optional override for the number of workers used by
-            :class:`HighDDataBuilder`. Falls back to ``config.NUM_WORKERS`` when
-            not provided.
-    """
+    """Build master tables and derived L1 artifacts for the selected recordings."""
 
     resolved_ids = _resolve_recording_ids(recording_ids)
     workers = config.NUM_WORKERS if num_workers is None else num_workers
@@ -67,7 +48,5 @@ def run_preprocessing(
     raw_data_dir = Path(config.RAW_DATA_DIR)
     output_dir = Path(config.PROCESSED_DATA_DIR)
 
-    builder = HighDDataBuilder(
-        raw_data_dir=raw_data_dir, output_dir=output_dir, num_workers=workers
-    )
-    builder.process_all_recordings(resolved_ids)
+    builder = L1Builder(raw_data_dir=raw_data_dir, processed_data_dir=output_dir, num_workers=workers)
+    builder.build_many(resolved_ids, num_workers=workers)

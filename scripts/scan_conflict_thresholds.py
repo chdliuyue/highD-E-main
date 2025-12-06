@@ -1,10 +1,7 @@
-"""Scan TTC and duration thresholds for high-interaction event detection.
+"""Parameter sweep over TTC/duration thresholds for conflict event detection."""
+from __future__ import annotations
 
-This script iterates over combinations of TTC and conflict duration thresholds,
-constructs high-interaction events per recording using the parameterized
-builder, and summarizes aggregate statistics for each configuration.
-"""
-
+import argparse
 import sys
 from pathlib import Path
 from statistics import median
@@ -12,43 +9,30 @@ from typing import Iterable, List
 
 import pandas as pd
 
-# Ensure project root is on the import path when the script is executed from
-# outside the repository root (e.g., ``python scripts/scan_conflict_thresholds.py``).
 PROJECT_ROOT_PATH = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT_PATH) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT_PATH))
 
 from config import FRAME_RATE_DEFAULT, POST_EVENT_TIME, PRE_EVENT_TIME, PROJECT_ROOT
-from data_preproc.events import build_conflict_events_param
+from data_preproc.events import extract_high_interaction_events
 
 L1_ROOT = PROJECT_ROOT / "data" / "processed" / "highD" / "data"
 
-# Threshold grids
 TTC_THRESHOLDS = [1.5, 2.0, 2.5, 3.0]
 DURATION_THRESHOLDS = [0.4, 0.8, 1.0]
 
 
 def _safe_median(values: List[float]) -> float:
-    """Return median of a list or NaN if the list is empty."""
-
     return median(values) if values else float("nan")
 
 
 def _iter_recording_paths(recording_ids: Iterable[int]) -> Iterable[tuple[int, Path]]:
-    """Yield recording id and expected L1 parquet path."""
-
     for rec_id in recording_ids:
         yield rec_id, L1_ROOT / f"recording_{rec_id:02d}" / "L1_master_frame.parquet"
 
 
-def scan_thresholds() -> pd.DataFrame:
-    """Run grid search over TTC and duration thresholds.
-
-    Returns
-    -------
-    pd.DataFrame
-        Summary table with counts and median metrics for each threshold pair.
-    """
+def scan_thresholds(recording_ids: Iterable[int]) -> pd.DataFrame:
+    """Run grid search over TTC and duration thresholds."""
 
     results = []
 
@@ -59,7 +43,7 @@ def scan_thresholds() -> pd.DataFrame:
             all_conf_durations: List[float] = []
             all_E_cpf_CO2: List[float] = []
 
-            for rec_id, l1_path in _iter_recording_paths(range(1, 61)):
+            for rec_id, l1_path in _iter_recording_paths(recording_ids):
                 if not l1_path.exists():
                     print(f"Warning: L1 file not found for recording {rec_id:02d} at {l1_path}")
                     continue
@@ -67,11 +51,11 @@ def scan_thresholds() -> pd.DataFrame:
                 df_l1 = pd.read_parquet(l1_path)
                 df_rec = df_l1[df_l1["recordingId"] == rec_id].copy()
 
-                df_conf = build_conflict_events_param(
+                df_conf = extract_high_interaction_events(
                     df_rec,
                     frame_rate=FRAME_RATE_DEFAULT,
-                    ttc_conf_thresh=ttc_thr,
-                    min_conf_dur=dur_thr,
+                    ttc_upper=ttc_thr,
+                    min_conf_duration=dur_thr,
                     pre_event_time=PRE_EVENT_TIME,
                     post_event_time=POST_EVENT_TIME,
                 )
@@ -99,10 +83,35 @@ def scan_thresholds() -> pd.DataFrame:
     return df_results.sort_values(["TTC_thr", "dur_thr"]).reset_index(drop=True)
 
 
-def main() -> None:
-    """Entry point for threshold scanning."""
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Scan TTC/duration thresholds for conflict detection")
+    parser.add_argument(
+        "--recordings",
+        type=str,
+        default="1-60",
+        help="Recording id range or comma list (e.g., '1-3,5')",
+    )
+    return parser.parse_args()
 
-    df_results = scan_thresholds()
+
+def parse_recording_range(spec: str) -> List[int]:
+    ids: List[int] = []
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            start, end = part.split("-", maxsplit=1)
+            ids.extend(list(range(int(start), int(end) + 1)))
+        else:
+            ids.append(int(part))
+    return sorted(set(ids))
+
+
+def main() -> None:
+    args = parse_args()
+    rec_ids = parse_recording_range(args.recordings)
+    df_results = scan_thresholds(rec_ids)
     output_path = PROJECT_ROOT / "data" / "processed" / "highD" / "threshold_scan_conflicts.csv"
     df_results.to_csv(output_path, index=False)
     print(df_results)

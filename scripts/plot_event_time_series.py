@@ -1,4 +1,4 @@
-"""Plot time-series traces for L2 conflict and baseline events."""
+"""Plot velocity/acceleration/CO2 traces for selected L2 events."""
 from __future__ import annotations
 
 import argparse
@@ -9,12 +9,11 @@ from typing import Optional, Tuple
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# Ensure the repository root is on the path when executed directly
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from config import PROJECT_ROOT, PROCESSED_DATA_DIR, FRAME_RATE_DEFAULT
+from config import FRAME_RATE_DEFAULT, PROCESSED_DATA_DIR, PROJECT_ROOT
 
 EVENTS_DIR = PROJECT_ROOT / "data" / "processed" / "highD" / "events"
 
@@ -52,29 +51,7 @@ def plot_event_time_series(
     figsize: Tuple[int, int] = (12, 8),
     frame_rate: float = FRAME_RATE_DEFAULT,
 ) -> Path | None:
-    """Plot velocity, acceleration, and CO2 rate traces for a single L2 event.
-
-    Parameters
-    ----------
-    l1_df:
-        L1 master frame dataframe for the event's recording.
-    event:
-        A row from an L2 events table describing the window to plot.
-    event_type:
-        Either ``"conflict"`` or ``"baseline"``; used for labelling and filenames.
-    save_dir:
-        If provided, the generated plot will be saved into this directory.
-    figsize:
-        Matplotlib figure size.
-    frame_rate:
-        Frame rate (Hz) used to convert frame indices to seconds when time values
-        are not available.
-
-    Returns
-    -------
-    Optional[Path]
-        Path to the saved plot if ``save_dir`` is provided; otherwise ``None``.
-    """
+    """Plot velocity, acceleration, and CO2 rate traces for a single L2 event."""
 
     track_df = l1_df[l1_df["trackId"] == event["ego_id"]].sort_values("frame")
     window_mask = (track_df["frame"] >= event["start_frame"]) & (track_df["frame"] <= event["end_frame"])
@@ -86,7 +63,6 @@ def plot_event_time_series(
             f"{event['ego_id']} between frames {event['start_frame']} and {event['end_frame']}"
         )
 
-    # Use time stamps when present; otherwise derive from frame indices.
     if "time" in window_df.columns and window_df["time"].notna().any():
         time_series = window_df["time"].to_numpy()
         start_time = time_series[0]
