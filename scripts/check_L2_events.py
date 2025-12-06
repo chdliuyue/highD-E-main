@@ -1,7 +1,16 @@
 """Quick checks for generated L2 event tables."""
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pandas as pd
+
+# Ensure the repository root is on the path so ``config`` can be imported when the
+# script is executed directly (for example via ``python scripts/check_L2_events.py``).
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from config import PROJECT_ROOT
 
