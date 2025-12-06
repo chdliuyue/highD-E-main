@@ -38,6 +38,23 @@ VEHICLE_MASS_TRUCK: float = 8000.0  # kg, placeholder
 GRAVITY: float = 9.81
 ROAD_GRADE: float = 0.0  # assume flat road
 
+# ---------------------------------------------------------------------------
+# L2 event detection parameters
+# ---------------------------------------------------------------------------
+FRAME_RATE_DEFAULT: float = 25.0
+
+# Conflict events
+TTC_CONF_THRESH: float = 2.0
+MIN_CONFLICT_DURATION: float = 1.0
+PRE_EVENT_TIME: float = 3.0
+POST_EVENT_TIME: float = 5.0
+
+# Baseline events
+TTC_BASE_MIN: float = 4.0
+ACC_SMOOTH_THRESH: float = 0.5
+BASELINE_WINDOW_TIME: float = 8.0
+BASELINE_WINDOW_STEP_TIME: float = 4.0
+
 # VT-Micro placeholder coefficients
 VT_MICRO_COEFFS = {
     "Car": {
@@ -82,4 +99,13 @@ __all__ = [
     "ROAD_GRADE",
     "VT_MICRO_COEFFS",
     "VEHICLE_TYPE_MAP",
+    "FRAME_RATE_DEFAULT",
+    "TTC_CONF_THRESH",
+    "MIN_CONFLICT_DURATION",
+    "PRE_EVENT_TIME",
+    "POST_EVENT_TIME",
+    "TTC_BASE_MIN",
+    "ACC_SMOOTH_THRESH",
+    "BASELINE_WINDOW_TIME",
+    "BASELINE_WINDOW_STEP_TIME",
 ]
