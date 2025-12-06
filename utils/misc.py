@@ -47,7 +47,14 @@ def compute_drac(gap: np.ndarray, rel_vel: np.ndarray, reaction_time: float = 1.
     """Compute Deceleration Rate to Avoid Crash (DRAC)."""
     gap_after_reaction = gap - np.maximum(rel_vel, 0) * reaction_time
     gap_after_reaction = np.maximum(gap_after_reaction, 0)
-    decel = np.where(gap_after_reaction <= 0, np.inf, (rel_vel ** 2) / (2 * gap_after_reaction))
+    positive_gap_mask = gap_after_reaction > 0
+    decel = np.full_like(gap_after_reaction, np.inf, dtype=np.float64)
+    np.divide(
+        rel_vel ** 2,
+        2 * gap_after_reaction,
+        out=decel,
+        where=positive_gap_mask,
+    )
     decel = np.nan_to_num(decel, nan=np.inf, posinf=np.inf, neginf=np.inf)
     return decel.astype(np.float32)
 
