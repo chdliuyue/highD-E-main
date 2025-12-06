@@ -11,7 +11,7 @@ def visualize_frame(
     frame: int,
     processed_dir: Path,
     highway_image_dir: Path,
-    color_by: str = "vtm_co2_rate",
+    color_by: str = "cpf_co2_rate_gps",
     figsize: Tuple[int, int] = (12, 6),
 ) -> None:
     """Visualize one frame on top of the corresponding highway background image."""
