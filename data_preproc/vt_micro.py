@@ -133,9 +133,9 @@ def vt_micro_emissions(
     a_kmhps = np.asarray(a_kmhps, dtype=float)
 
     results = np.full_like(v_kmh, np.nan, dtype=float)
+    regime = np.where(a_kmhps >= 0, "pos", "neg")
     for veh in np.unique(vehicle_cat):
         mask = vehicle_cat == veh
-        regime = np.where(a_kmhps[mask] >= 0, "pos", "neg")
 
         for reg in ["pos", "neg"]:
             reg_mask = mask & (regime == reg)
