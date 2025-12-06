@@ -1,4 +1,4 @@
-"""Summarize generated L2 event tables across recordings."""
+"""Summarize generated L2 conflict and baseline events across recordings."""
 from __future__ import annotations
 
 import argparse
@@ -8,8 +8,6 @@ from typing import Iterable, List
 
 import pandas as pd
 
-# Ensure the repository root is on the path so ``config`` can be imported when the
-# script is executed directly (for example via ``python scripts/summarize_L2_events.py``).
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))

@@ -5,12 +5,10 @@ import argparse
 from typing import List, Optional
 
 import config
-from scripts.build_L2_events import build_for_recording
+from data_preproc.events import build_events_for_recording
 
 
 def parse_recordings(arg: str | None) -> Optional[List[int]]:
-    """Parse recording list argument such as "01,02" or "all"."""
-
     if arg is None:
         return None
 
@@ -25,8 +23,6 @@ def parse_recordings(arg: str | None) -> Optional[List[int]]:
 
 
 def resolve_recordings(recording_ids: Optional[List[int]]) -> List[int]:
-    """Determine which recordings to process based on overrides and config."""
-
     if recording_ids:
         return list(recording_ids)
 
@@ -50,6 +46,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Comma-separated recording ids (e.g., '01,02,03') or 'all'.",
     )
+    parser.add_argument(
+        "--frame-rate",
+        type=float,
+        default=config.FRAME_RATE_DEFAULT,
+        help="Frame rate to use for time conversion (Hz).",
+    )
     return parser.parse_args()
 
 
@@ -58,7 +60,15 @@ def main() -> None:
     rec_ids = resolve_recordings(parse_recordings(args.recordings))
 
     for rec_id in rec_ids:
-        build_for_recording(int(rec_id))
+        l1_path = config.PROCESSED_DATA_DIR / f"recording_{rec_id:02d}" / "L1_master_frame.parquet"
+        events_dir = config.PROJECT_ROOT / "data" / "processed" / "highD" / "events" / f"recording_{rec_id:02d}"
+        build_events_for_recording(
+            rec_id=rec_id,
+            l1_path=l1_path,
+            events_dir=events_dir,
+            frame_rate=args.frame_rate,
+        )
+        print(f"Recording {rec_id:02d}: events saved to {events_dir}")
 
 
 if __name__ == "__main__":
