@@ -26,26 +26,40 @@ def load_tables(rec_id: int):
     return pd.read_parquet(conf_path), pd.read_parquet(base_path)
 
 
-def describe_events(rec_id: int = 1) -> None:
+def describe_events(rec_id: int) -> None:
     df_conf, df_base = load_tables(rec_id)
 
     print(f"Recording {rec_id:02d}: conflict events = {len(df_conf)}, baseline events = {len(df_base)}")
     if not df_conf.empty:
         print("\nConflict event stats:")
-        cols = [col for col in ["conf_duration", "min_TTC", "E_cpf_CO2", "E_cpf_fuel"] if col in df_conf.columns]
+        cols = [
+            col
+            for col in ["conf_duration", "min_TTC_conf", "E_cpf_CO2", "E_cpf_fuel", "duration"]
+            if col in df_conf.columns
+        ]
         print(df_conf[cols].describe())
+        if {"E_cpf_CO2", "duration"}.issubset(df_conf.columns):
+            df_conf = df_conf.assign(E_cpf_CO2_per_s=df_conf["E_cpf_CO2"] / df_conf["duration"].replace(0, pd.NA))
+            print("\nConflict E_cpf_CO2_per_s stats:")
+            print(df_conf["E_cpf_CO2_per_s"].describe())
         print("\nConflict events by veh_class:")
         print(df_conf["veh_class"].value_counts(dropna=False))
     if not df_base.empty:
         print("\nBaseline event stats:")
-        cols = [col for col in ["min_TTC", "E_cpf_CO2", "E_cpf_fuel"] if col in df_base.columns]
+        cols = [col for col in ["min_TTC", "E_cpf_CO2", "E_cpf_fuel", "duration"] if col in df_base.columns]
         print(df_base[cols].describe())
         print("\nBaseline events by veh_class:")
         print(df_base["veh_class"].value_counts(dropna=False))
 
 
 def main() -> None:
-    describe_events(1)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Quick descriptive stats for L2 events")
+    parser.add_argument("--recording", type=int, default=1, help="Recording id to inspect (e.g., 1)")
+    args = parser.parse_args()
+
+    describe_events(args.recording)
 
 
 if __name__ == "__main__":

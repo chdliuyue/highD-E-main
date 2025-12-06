@@ -1,8 +1,8 @@
-"""Scan TTC and duration thresholds for conflict event detection.
+"""Scan TTC and duration thresholds for high-interaction event detection.
 
 This script iterates over combinations of TTC and conflict duration thresholds,
-constructs conflict events per recording using the parameterized builder, and
-summarizes aggregate statistics for each configuration.
+constructs high-interaction events per recording using the parameterized
+builder, and summarizes aggregate statistics for each configuration.
 """
 
 import sys
@@ -18,7 +18,7 @@ PROJECT_ROOT_PATH = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT_PATH) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT_PATH))
 
-from config import FRAME_RATE_DEFAULT, PROJECT_ROOT
+from config import FRAME_RATE_DEFAULT, POST_EVENT_TIME, PRE_EVENT_TIME, PROJECT_ROOT
 from data_preproc.events import build_conflict_events_param
 
 L1_ROOT = PROJECT_ROOT / "data" / "processed" / "highD" / "data"
@@ -72,8 +72,8 @@ def scan_thresholds() -> pd.DataFrame:
                     frame_rate=FRAME_RATE_DEFAULT,
                     ttc_conf_thresh=ttc_thr,
                     min_conf_dur=dur_thr,
-                    pre_event_time=3.0,
-                    post_event_time=5.0,
+                    pre_event_time=PRE_EVENT_TIME,
+                    post_event_time=POST_EVENT_TIME,
                 )
 
                 total_conf_events += len(df_conf)
