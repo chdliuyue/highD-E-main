@@ -18,8 +18,8 @@ from data_preproc.events import extract_high_interaction_events
 
 L1_ROOT = PROJECT_ROOT / "data" / "processed" / "highD" / "data"
 
-TTC_THRESHOLDS = [1.5, 2.0, 2.5, 3.0]
-DURATION_THRESHOLDS = [0.4, 0.8, 1.0]
+TTC_THRESHOLDS = [2.0, 3.0, 4.0]
+DURATION_THRESHOLDS = [0.4, 0.6, 0.8, 1.0]
 
 
 def _safe_median(values: List[float]) -> float:
