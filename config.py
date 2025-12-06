@@ -44,8 +44,8 @@ ROAD_GRADE: float = 0.0  # assume flat road
 FRAME_RATE_DEFAULT: float = 25.0
 
 # Conflict events
-TTC_CONF_THRESH: float = 2.0
-MIN_CONFLICT_DURATION: float = 1.0
+TTC_CONF_THRESH: float = 4.0
+MIN_CONFLICT_DURATION: float = 0.4
 PRE_EVENT_TIME: float = 3.0
 POST_EVENT_TIME: float = 5.0
 
