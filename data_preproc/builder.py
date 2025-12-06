@@ -11,7 +11,7 @@ import pandas as pd
 import config
 from data_preproc.io_highd import load_recording_meta, load_tracks, load_tracks_meta
 from data_preproc.schema import Columns, column_order
-from data_preproc.vt_micro import vt_micro_emissions
+from data_preproc.vt_micro import compute_vtmicro_for_df, load_vtmicro_coeffs
 from data_preproc.vsp import vsp_emissions
 from utils.misc import apply_savgol_by_group, compute_drac, ensure_directory, safe_divide
 
@@ -25,6 +25,7 @@ class HighDDataBuilder:
         self.raw_data_dir = raw_data_dir
         self.output_dir = output_dir
         self.num_workers = max(int(num_workers), 1)
+        self.vt_micro_coeffs = load_vtmicro_coeffs()
 
     def process_all_recordings(self, recording_ids: Optional[List[int]] = None) -> None:
         """Process multiple recordings sequentially or in parallel."""
@@ -167,16 +168,12 @@ class HighDDataBuilder:
         return df
 
     def _compute_emissions_vt_micro(self, df: pd.DataFrame) -> pd.DataFrame:
-        vehicle_type = df[C.veh_class].map(config.VEHICLE_CLASS_DECODING).fillna("Car")
-        v_kmh = df[C.v_long_smooth] * 3.6
-        a_kmhps = df[C.a_long_smooth] * 3.6
-        emissions = vt_micro_emissions(vehicle_type.to_numpy(), v_kmh.to_numpy(), a_kmhps.to_numpy())
-        df[C.vehicle_type] = vehicle_type
-        df[C.v_kmh] = v_kmh.astype(np.float32)
-        df[C.a_kmhps] = a_kmhps.astype(np.float32)
-        df[C.vtm_fuel_rate] = emissions["fuel_rate"]
-        df[C.vtm_co2_rate] = emissions["co2_rate"]
-        df[C.vtm_nox_rate] = emissions["nox_rate"]
+        vehicle_cat_mapping = {
+            **{k: "LDV" for k in ["Car", config.VEHICLE_CLASS_DECODING.get(1, "Car")]},
+            **{k: "LDT" for k in ["Truck", config.VEHICLE_CLASS_DECODING.get(2, "Truck")]},
+            **{1: "LDV", 2: "LDT"},
+        }
+        df = compute_vtmicro_for_df(df, self.vt_micro_coeffs, vehicle_cat_mapping=vehicle_cat_mapping)
         return df
 
     def _compute_emissions_vsp(self, df: pd.DataFrame) -> pd.DataFrame:
