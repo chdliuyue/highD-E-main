@@ -1,4 +1,4 @@
-# VT-CPFM Fuel and CO2 Model in this Project
+# VT-CPFM-1 Model Notes
 
 ## 1. Model Formulation
 We adopt the VT-CPFM-1 (Virginia Tech Comprehensive Power-Based Fuel Consumption Model, type 1) to estimate instantaneous fuel use and CO₂ emissions at the frame level of the highD dataset. The traction power demand at time $t$ (in kW) follows the simplified longitudinal dynamics in Fahmin et al. (2022, Eq. 2):
@@ -65,16 +65,17 @@ Parameters from Fahmin et al. (2022) Table 1; fuel map coefficients temporarily 
 | $\alpha_1$ | $5.363\times10^{-5}$ L/(s·kW) | Reused from LDV |
 | $\alpha_2$ | $1.0\times10^{-6}$ L/(s·kW²) | Reused from LDV |
 
-## 3. CO2 Estimation
+## 3. CO2 and Fuel Outputs in the Pipeline
 The VT-CPFM-1 output in this project includes per-frame power ($P$), fuel rate ($\mathrm{FC}$), and CO₂ rate columns:
 - `cpf_power_kw`: traction power demand [kW]
 - `cpf_fuel_rate_lps`: fuel consumption rate [L/s]
 - `cpf_co2_rate_gps`: CO₂ emission rate [g/s]
 
-CO₂ totals over a time window are obtained by integrating `cpf_co2_rate_gps` over time (sum rate · $\Delta t$).
+CO₂ and fuel totals over a time window are obtained by integrating the corresponding rates over time (sum of rate · $\Delta t$).
 
 ## 4. Assumptions and Limitations
 - All highD `Car` records are treated as Honda Civic-like LDVs; all `Truck` records as International 9800 SBA HDDTs.
 - HDDT fuel map coefficients ($\alpha_0, \alpha_1, \alpha_2$) reuse the LDV set as a conservative placeholder. The study focuses on relative marginal emission costs across behaviors/events rather than absolute fleet inventories.
 - Road grade is assumed zero (flat highway); no gear-shift dynamics are modeled.
+- VT-Micro (`vt_micro.py`) remains only for legacy/benchmarking purposes; the main pipeline uses VT-CPFM fields (`cpf_*`).
 - Future work can replace HDDT fuel coefficients with calibrated heavy-duty VT-CPFM values once available, improving absolute emission estimates without changing the pipeline API.

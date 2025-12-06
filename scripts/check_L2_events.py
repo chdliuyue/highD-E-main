@@ -23,12 +23,14 @@ def describe_events(rec_id: int = 1) -> None:
     print(f"Recording {rec_id:02d}: conflict events = {len(df_conf)}, baseline events = {len(df_base)}")
     if not df_conf.empty:
         print("\nConflict event stats:")
-        print(df_conf[["conf_duration", "min_TTC", "E_cpf_CO2"]].describe())
+        cols = [col for col in ["conf_duration", "min_TTC", "E_cpf_CO2", "E_cpf_fuel"] if col in df_conf.columns]
+        print(df_conf[cols].describe())
         print("\nConflict events by veh_class:")
         print(df_conf["veh_class"].value_counts(dropna=False))
     if not df_base.empty:
         print("\nBaseline event stats:")
-        print(df_base[["min_TTC", "E_cpf_CO2"]].describe())
+        cols = [col for col in ["min_TTC", "E_cpf_CO2", "E_cpf_fuel"] if col in df_base.columns]
+        print(df_base[cols].describe())
         print("\nBaseline events by veh_class:")
         print(df_base["veh_class"].value_counts(dropna=False))
 

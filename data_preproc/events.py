@@ -1,4 +1,4 @@
-"""L2 event construction for conflict and baseline segments."""
+"""L2 event construction for conflict and baseline segments using VT-CPFM rates."""
 from __future__ import annotations
 
 from typing import Dict, List, Tuple
@@ -141,7 +141,12 @@ def build_conflict_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFram
                     "max_decel": float(window_df["a_long_smooth"].min()) if not window_df.empty else float("nan"),
                     "max_accel": float(window_df["a_long_smooth"].max()) if not window_df.empty else float("nan"),
                     "num_lane_changes": _count_lane_changes(window_df.get("laneId_raw", pd.Series(dtype=float))),
-                    "E_cpf_CO2": _integrate_rate(window_df.get("cpf_co2_rate_gps", pd.Series(dtype=float)), frame_rate),
+                    "E_cpf_CO2": _integrate_rate(
+                        window_df.get("cpf_co2_rate_gps", pd.Series(dtype=float)), frame_rate
+                    ),
+                    "E_cpf_fuel": _integrate_rate(
+                        window_df.get("cpf_fuel_rate_lps", pd.Series(dtype=float)), frame_rate
+                    ),
                     "E_vsp_CO2": _integrate_rate(window_df.get("vsp_co2_rate", pd.Series(dtype=float)), frame_rate),
                     "E_vsp_NOx": _integrate_rate(window_df.get("vsp_nox_rate", pd.Series(dtype=float)), frame_rate),
                 }
@@ -215,7 +220,12 @@ def build_baseline_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFram
                     "max_decel": float(window_df["a_long_smooth"].min()),
                     "max_accel": float(window_df["a_long_smooth"].max()),
                     "num_lane_changes": _count_lane_changes(window_df.get("laneId_raw", pd.Series(dtype=float))),
-                    "E_cpf_CO2": _integrate_rate(window_df.get("cpf_co2_rate_gps", pd.Series(dtype=float)), frame_rate),
+                    "E_cpf_CO2": _integrate_rate(
+                        window_df.get("cpf_co2_rate_gps", pd.Series(dtype=float)), frame_rate
+                    ),
+                    "E_cpf_fuel": _integrate_rate(
+                        window_df.get("cpf_fuel_rate_lps", pd.Series(dtype=float)), frame_rate
+                    ),
                     "E_vsp_CO2": _integrate_rate(window_df.get("vsp_co2_rate", pd.Series(dtype=float)), frame_rate),
                     "E_vsp_NOx": _integrate_rate(window_df.get("vsp_nox_rate", pd.Series(dtype=float)), frame_rate),
                 }

@@ -20,7 +20,12 @@ def parse_recordings(arg: str | None) -> List[int]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="L2 event construction entrypoint")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Construct L2 conflict and baseline events using VT-CPFM-derived emissions "
+            "from the L1 master tables."
+        )
+    )
     parser.add_argument(
         "--recordings",
         type=str,

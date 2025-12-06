@@ -165,6 +165,26 @@ def test_emissions_non_negative(master_df):
 
 
 @pytest.mark.physics
+def test_cpf_rate_ranges(master_df):
+    co2_field = "cpf_co2_rate_gps"
+    fuel_field = "cpf_fuel_rate_lps"
+    missing = [fld for fld in [co2_field, fuel_field] if fld not in master_df.columns]
+    if missing:
+        pytest.skip(f"Missing CPF fields: {missing}")
+
+    co2 = master_df[co2_field].dropna()
+    fuel = master_df[fuel_field].dropna()
+    if co2.empty or fuel.empty:
+        pytest.skip("CPF rate fields are empty")
+
+    assert (co2 >= 0).mean() > 0.999, "cpf_co2_rate_gps should be non-negative for nearly all rows"
+    assert (fuel >= 0).mean() > 0.999, "cpf_fuel_rate_lps should be non-negative for nearly all rows"
+
+    assert co2.max() < 1e4, f"cpf_co2_rate_gps appears unreasonably large (max={co2.max():.2e})"
+    assert fuel.max() < 1e3, f"cpf_fuel_rate_lps appears unreasonably large (max={fuel.max():.2e})"
+
+
+@pytest.mark.physics
 def test_cpf_co2_rate_reasonable(master_df):
     field = "cpf_co2_rate_gps"
     if field not in master_df.columns:
