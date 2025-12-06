@@ -39,12 +39,29 @@ def _resolve_raw_data_dir() -> Path:
     """Return path to raw data, handling optional recording subdirectories."""
 
     default_dir = PROJECT_ROOT / "data/raw/highD/data"
+    # Prefer a per-recording directory if one exists, even when the base folder is
+    # present. This handles setups where the raw files live under
+    # ``data/raw/highD/data/recording_XX`` but the parent directory still exists
+    # (and may be empty).
+    first_candidate: Optional[Path] = None
+    for candidate in sorted(PROJECT_ROOT.glob("data/raw/highD/data/recording_*")):
+        if candidate.is_dir():
+            # If the folder contains track CSVs, use it immediately; otherwise keep
+            # the first directory we see as a fallback.
+            if any(candidate.glob("*_tracks.csv")):
+                return candidate
+            if first_candidate is None:
+                first_candidate = candidate
+
+    # If we saw a recording folder but it lacked track files, fall back to the base
+    # directory when it exists.
     if default_dir.exists():
         return default_dir
 
-    for candidate in sorted(PROJECT_ROOT.glob("data/raw/highD/data/recording_*")):
-        if candidate.is_dir():
-            return candidate
+    # If the base directory is missing, prefer the first recording_* folder we
+    # encountered (even if empty) so that callers get a consistent path.
+    if first_candidate is not None:
+        return first_candidate
 
     return default_dir
 
