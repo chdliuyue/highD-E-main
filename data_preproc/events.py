@@ -153,18 +153,22 @@ def build_conflict_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFram
             )
             event_counter += 1
 
-    return pd.DataFrame(events).astype(
-        {
-            "event_id": "int64",
-            "recordingId": "int32",
-            "ego_id": "int32",
-            "start_frame": "int32",
-            "end_frame": "int32",
-            "conf_start_frame": "int32",
-            "conf_end_frame": "int32",
-            "num_lane_changes": "int32",
-        }
-    )
+    dtype_map = {
+        "event_id": "int64",
+        "recordingId": "int32",
+        "ego_id": "int32",
+        "start_frame": "int32",
+        "end_frame": "int32",
+        "conf_start_frame": "int32",
+        "conf_end_frame": "int32",
+        "num_lane_changes": "int32",
+    }
+
+    df_events = pd.DataFrame(events)
+    if df_events.empty:
+        return pd.DataFrame(columns=dtype_map.keys())
+
+    return df_events.astype(dtype_map)
 
 
 def build_baseline_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFrame:
