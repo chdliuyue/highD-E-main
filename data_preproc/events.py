@@ -72,20 +72,19 @@ def _count_lane_changes(lanes: pd.Series) -> int:
     return int(max(changes, 0))
 
 
-def build_conflict_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFrame:
-    """Construct L2 conflict events using TTC-based segments.
+def _build_conflict_events_internal(
+    df_l1: pd.DataFrame,
+    frame_rate: float,
+    ttc_conf_thresh: float,
+    min_conf_dur: float,
+    pre_event_time: float,
+    post_event_time: float,
+) -> pd.DataFrame:
+    """Shared implementation for constructing conflict events.
 
-    Parameters
-    ----------
-    df_l1:
-        L1 master frame dataframe for a single recording.
-    frame_rate:
-        Frame rate (Hz) used to convert frames to seconds.
-
-    Returns
-    -------
-    pd.DataFrame
-        Conflict events table with expanded pre/post windows and summary metrics.
+    This helper is used by both :func:`build_conflict_events` (config-driven) and
+    :func:`build_conflict_events_param` (fully parameterized) to avoid code
+    duplication while supporting different threshold sources.
     """
 
     events: List[Dict] = []
@@ -95,19 +94,19 @@ def build_conflict_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFram
         df_grp = df_grp.sort_values("frame")
         frames = df_grp["frame"].to_numpy()
         ttc = df_grp["TTC"].to_numpy()
-        mask_conflict = ttc < config.TTC_CONF_THRESH
+        mask_conflict = ttc < ttc_conf_thresh
         segments = find_contiguous_segments(mask_conflict, frames)
 
         if not segments:
             continue
 
         min_frame, max_frame = frames.min(), frames.max()
-        pre_frames = int(round(config.PRE_EVENT_TIME * frame_rate))
-        post_frames = int(round(config.POST_EVENT_TIME * frame_rate))
+        pre_frames = int(round(pre_event_time * frame_rate))
+        post_frames = int(round(post_event_time * frame_rate))
 
         for conf_start, conf_end in segments:
             conf_duration = (conf_end - conf_start + 1) / frame_rate
-            if conf_duration < config.MIN_CONFLICT_DURATION:
+            if conf_duration < min_conf_dur:
                 continue
 
             start_frame = max(min_frame, conf_start - pre_frames)
@@ -169,6 +168,56 @@ def build_conflict_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFram
         return pd.DataFrame(columns=dtype_map.keys())
 
     return df_events.astype(dtype_map)
+
+
+def build_conflict_events_param(
+    df_l1: pd.DataFrame,
+    frame_rate: float,
+    ttc_conf_thresh: float,
+    min_conf_dur: float,
+    pre_event_time: float,
+    post_event_time: float,
+) -> pd.DataFrame:
+    """Construct L2 conflict events with parameterized thresholds.
+
+    This variant mirrors :func:`build_conflict_events` but accepts thresholds and
+    buffer durations explicitly, making it suitable for grid searches.
+    """
+
+    return _build_conflict_events_internal(
+        df_l1=df_l1,
+        frame_rate=frame_rate,
+        ttc_conf_thresh=ttc_conf_thresh,
+        min_conf_dur=min_conf_dur,
+        pre_event_time=pre_event_time,
+        post_event_time=post_event_time,
+    )
+
+
+def build_conflict_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFrame:
+    """Construct L2 conflict events using TTC-based segments.
+
+    Parameters
+    ----------
+    df_l1:
+        L1 master frame dataframe for a single recording.
+    frame_rate:
+        Frame rate (Hz) used to convert frames to seconds.
+
+    Returns
+    -------
+    pd.DataFrame
+        Conflict events table with expanded pre/post windows and summary metrics.
+    """
+
+    return _build_conflict_events_internal(
+        df_l1=df_l1,
+        frame_rate=frame_rate,
+        ttc_conf_thresh=config.TTC_CONF_THRESH,
+        min_conf_dur=config.MIN_CONFLICT_DURATION,
+        pre_event_time=config.PRE_EVENT_TIME,
+        post_event_time=config.POST_EVENT_TIME,
+    )
 
 
 def build_baseline_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFrame:
@@ -251,5 +300,6 @@ def build_baseline_events(df_l1: pd.DataFrame, frame_rate: float) -> pd.DataFram
 __all__ = [
     "find_contiguous_segments",
     "build_conflict_events",
+    "build_conflict_events_param",
     "build_baseline_events",
 ]
