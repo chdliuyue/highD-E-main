@@ -91,9 +91,10 @@ class HighDDataBuilder:
         meta = tracks_meta.rename(columns={"id": C.track_id, "class": C.veh_class})[
             [C.track_id, C.veh_class, "drivingDirection", "width", "height"]
         ]
+        meta[C.veh_class] = meta[C.veh_class].map(config.VEHICLE_CLASS_ENCODING).astype("Int8")
         df = df.merge(meta, on=C.track_id, how="left")
         df[C.driving_direction] = df["drivingDirection"].astype(np.int8)
-        df[C.veh_class] = df[C.veh_class].astype("category")
+        df[C.veh_class] = df[C.veh_class].astype("Int8")
         df[C.width] = df["width_y"].fillna(df["width_x"])
         df[C.height] = df["height_y"].fillna(df["height_x"])
         df.drop(columns=[col for col in df.columns if col.endswith("_x") or col.endswith("_y")], inplace=True)
@@ -166,7 +167,7 @@ class HighDDataBuilder:
         return df
 
     def _compute_emissions_vt_micro(self, df: pd.DataFrame) -> pd.DataFrame:
-        vehicle_type = df[C.veh_class].astype(str).map(config.VEHICLE_TYPE_MAP).fillna("Car")
+        vehicle_type = df[C.veh_class].map(config.VEHICLE_CLASS_DECODING).fillna("Car")
         v_kmh = df[C.v_long_smooth] * 3.6
         a_kmhps = df[C.a_long_smooth] * 3.6
         emissions = vt_micro_emissions(vehicle_type.to_numpy(), v_kmh.to_numpy(), a_kmhps.to_numpy())

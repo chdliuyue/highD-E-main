@@ -11,6 +11,9 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
+import config
+from data_preproc.schema import Columns
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 def _resolve_processed_parquet() -> Path:
     """Return path to the processed parquet, accounting for per-recording folders.
@@ -68,7 +71,21 @@ def load_master_table(columns: Optional[Sequence[str]] = None) -> pd.DataFrame:
     """
     if not PROCESSED_PARQUET.exists():
         raise FileNotFoundError(f"Processed parquet not found: {PROCESSED_PARQUET}")
-    return pd.read_parquet(PROCESSED_PARQUET, columns=columns)
+
+    df = pd.read_parquet(PROCESSED_PARQUET, columns=columns)
+
+    # Backward compatibility: older parquet files stored veh_class as strings.
+    # Convert to the numeric encoding expected by sanity checks.
+    veh_col = Columns().veh_class
+    if veh_col in df.columns and not pd.api.types.is_numeric_dtype(df[veh_col]):
+        df[veh_col] = (
+            df[veh_col]
+            .astype(str)
+            .map(config.VEHICLE_CLASS_ENCODING)
+            .astype("Int8", errors="ignore")
+        )
+
+    return df
 
 
 def load_raw_tracks(recording_id: int = 1) -> pd.DataFrame:

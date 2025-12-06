@@ -54,6 +54,9 @@ VT_MICRO_COEFFS = {
 
 # Mapping helpers
 VEHICLE_TYPE_MAP = {"Car": "Car", "Truck": "Truck"}
+# Encoding used for numeric vehicle class representation in master table
+VEHICLE_CLASS_ENCODING = {"Car": 1, "Truck": 2}
+VEHICLE_CLASS_DECODING = {v: k for k, v in VEHICLE_CLASS_ENCODING.items()}
 
 __all__ = [
     "PROJECT_ROOT",
