@@ -2,12 +2,16 @@
 
 This module implements a representative-vehicle VT-CPFM-1 (Comprehensive Power-
 Based Fuel Consumption Model) pipeline for the highD dataset. Parameter sources
-are cited in the constants below:
+mirror the documentation in ``docs/vt_cpfm_model.md``:
 
 - LDV_PARAMS (Honda Civic, gasoline): Kamalanathsharma (2014) Table 7.3.
 - HDDT_PARAMS (International 9800 SBA, diesel): Fahmin et al. (2022) Table 1 for
   physical parameters; fuel map coefficients currently reuse LDV coefficients as
   a simplifying assumption pending HDDT-specific calibration.
+- Carbon factors (g/L): U.S. EPA (2021) for gasoline and diesel.
+
+VT-Micro remains available in ``vt_micro.py`` for legacy comparisons only; the
+primary pipeline should consume the ``cpf_*`` outputs from this module.
 """
 from __future__ import annotations
 

@@ -1,9 +1,9 @@
 """VT-Micro emission model utilities based on coefficient tables.
 
-This module provides a thin, data-driven VT-Micro evaluation pipeline. Coefficients
-are expected to be supplied via an external JSON file rather than hard-coded
-placeholders. The JSON should follow the structure described in
-``load_vtmicro_coeffs``.
+This module is retained **only for legacy comparisons**; the primary pipeline now
+uses VT-CPFM-derived ``cpf_*`` fields. Coefficients are expected to be supplied
+via an external JSON file rather than hard-coded placeholders. The JSON should
+follow the structure described in ``load_vtmicro_coeffs``.
 """
 from __future__ import annotations
 

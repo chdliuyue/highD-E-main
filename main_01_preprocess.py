@@ -7,7 +7,11 @@ import preprocess_main
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="L1 preprocessing wrapper")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Build L1 master tables with VT-CPFM power/fuel/CO2 estimation for highD recordings."
+        )
+    )
     parser.add_argument(
         "--recordings",
         type=str,
