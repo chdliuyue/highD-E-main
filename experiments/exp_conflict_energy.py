@@ -17,6 +17,7 @@ from analysis.behavior_clustering import (
     plot_cluster_centroid_timeseries,
 )
 from analysis.map_visualization import plot_trajectories_on_map
+from analysis.mec_baseline import build_and_save_mec, DEFAULT_MEC_PATH
 
 
 def _load_l1(rec_id: int) -> pd.DataFrame:
@@ -56,7 +57,7 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
             print("No severe conflicts found for ghost car validation.")
         else:
             episode = severe.iloc[0]
-            idm_params = {"v0": 30.0, "T": 1.5, "s0": 2.0, "a": 1.5, "b": 2.0}
+            idm_params = {"v0": 30.0, "T": 1.5, "s0": 2.0, "a_max": 1.5, "b_comf": 2.0}
             data = simulate_ghost_car(df_l1, episode, idm_params)
             save_path = fig_dir / f"ghost_car_validation_rec{rec_id:02d}_event{episode.name}.png"
             plot_ghost_car_validation(data, save_path)
@@ -102,11 +103,11 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
         print("Saved safety–energy phase plane plot.")
 
     if task in {"mec", "all"}:
-        try:
-            df_mec = load_mec_data(path=mec_dir / "L2_conf_mec_baseline.parquet")
-        except FileNotFoundError as exc:
-            print(str(exc))
-            df_mec = pd.DataFrame()
+        default_path = DEFAULT_MEC_PATH
+        if default_path.exists():
+            df_mec = load_mec_data(path=default_path)
+        else:
+            df_mec = build_and_save_mec(recordings, output_path=default_path)
         if df_mec.empty:
             print("MEC data unavailable.")
         else:
