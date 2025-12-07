@@ -38,6 +38,10 @@ def plot_mec_distributions(df_mec: pd.DataFrame, save_path: Path | None = None) 
     if df_mec.empty:
         return
 
+    if "MEC_CO2_per_km" not in df_mec.columns:
+        print("MEC_CO2_per_km column missing; skipping MEC distribution plot.")
+        return
+
     if "severity_bin" not in df_mec:
         df_mec = add_severity_bins(df_mec)
 
