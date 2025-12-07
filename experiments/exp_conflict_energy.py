@@ -178,6 +178,7 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
             feature_df = build_behavior_features(df_mec)
             clustered = cluster_behaviors(feature_df)
             cluster_path = PROJECT_ROOT / "data" / "analysis" / "L2_conf_mec_clusters.parquet"
+            cluster_path.parent.mkdir(parents=True, exist_ok=True)
             clustered.to_parquet(cluster_path, index=False)
             print(f"Saved cluster assignments to {cluster_path}")
 

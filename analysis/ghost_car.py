@@ -87,8 +87,8 @@ def _align_leader_to_time(df_leader: pd.DataFrame, t_ref: np.ndarray, frame_ref:
     v_interp = np.interp(t_ref, leader_t, v_raw, left=np.nan, right=np.nan)
 
     # Fill potential NaNs (e.g., partial tracking) with nearest observed values
-    s_series = pd.Series(s_interp).fillna(method="ffill").fillna(method="bfill")
-    v_series = pd.Series(v_interp).fillna(method="ffill").fillna(method="bfill")
+    s_series = pd.Series(s_interp).ffill().bfill()
+    v_series = pd.Series(v_interp).ffill().bfill()
 
     return s_series.to_numpy(dtype=float), v_series.to_numpy(dtype=float)
 

@@ -61,10 +61,10 @@ def build_behavior_features(df_mec: pd.DataFrame) -> pd.DataFrame:
         if df_features[col].isna().all():
             df_features[col] = 0.0
         else:
-            df_features[col].fillna(df_features[col].median(), inplace=True)
+            df_features[col] = df_features[col].fillna(df_features[col].median())
 
-    df_features["min_TTC_conf"].fillna(df_features["min_TTC_conf"].median(), inplace=True)
-    df_features["conf_duration"].fillna(df_features["conf_duration"].median(), inplace=True)
+    df_features["min_TTC_conf"] = df_features["min_TTC_conf"].fillna(df_features["min_TTC_conf"].median())
+    df_features["conf_duration"] = df_features["conf_duration"].fillna(df_features["conf_duration"].median())
 
     return df_features
 
