@@ -11,13 +11,21 @@ import matplotlib.pyplot as plt
 from models.idm import IDM
 
 
-def select_severe_conflicts(df_L2: pd.DataFrame, ttc_thresh: float = 2.0, min_dur: float = 0.8) -> pd.DataFrame:
-    """Return a subset of severe conflict events.
+def select_severe_conflicts(
+    df_L2: pd.DataFrame,
+    ttc_thresh: float = 2.0,
+    min_dur: float = 0.8,
+    accel_thresh: float = 2.0,
+) -> pd.DataFrame:
+    """Return a subset of severe conflict events with strong kinematic response.
 
     Args:
         df_L2: Conflict events table.
         ttc_thresh: Severity threshold for ``min_TTC_conf``.
         min_dur: Minimum conflict duration in seconds.
+        accel_thresh: Minimum absolute acceleration (if available) to qualify
+            as a severe event. Columns searched include ``a_min`` and
+            ``a_long_min``.
 
     Returns:
         Filtered DataFrame containing severe episodes only.
@@ -25,6 +33,13 @@ def select_severe_conflicts(df_L2: pd.DataFrame, ttc_thresh: float = 2.0, min_du
     mask = (df_L2.get("min_TTC_conf", pd.Series(dtype=float)) < ttc_thresh) & (
         df_L2.get("conf_duration", pd.Series(dtype=float)) >= min_dur
     )
+
+    accel_cols = ["a_min", "a_long_min", "a_long_smooth_min"]
+    for col in accel_cols:
+        if col in df_L2:
+            mask &= df_L2[col].abs() > accel_thresh
+            break
+
     return df_L2.loc[mask].copy()
 
 
@@ -129,10 +144,19 @@ def simulate_ghost_car(
     a_real = np.concatenate([[0.0], np.diff(v_real) / dt]) if dt > 0 else np.zeros_like(v_real)
     a_ghost = np.concatenate([[0.0], np.diff(v_ghost) / dt]) if dt > 0 else np.zeros_like(v_ghost)
 
+    # Vehicle lengths are not available in L1; gap is approximated by the raw
+    # longitudinal spacing. If lengths are added later, subtract half-lengths
+    # of leader/ego here.
+    gap_real = s_leader - s_real
+    gap_ghost = s_leader - s_ghost
+
     return {
         "t": t,
+        "s_leader": s_leader,
         "s_real": s_real,
         "s_ghost": s_ghost,
+        "gap_real": gap_real,
+        "gap_ghost": gap_ghost,
         "v_real": v_real,
         "v_ghost": v_ghost,
         "a_real": a_real,
@@ -155,12 +179,12 @@ def plot_ghost_car_validation(data: Dict[str, np.ndarray], save_path: Path | Non
     t = data["t"]
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    axes[0].plot(data["s_real"], t, label="Real", color="tab:blue")
-    axes[0].plot(data["s_ghost"], t, label="Ghost (IDM)", color="tab:orange", linestyle="--")
+    axes[0].plot(data["gap_real"], t, label="Gap real", color="tab:blue")
+    axes[0].plot(data["gap_ghost"], t, label="Gap ghost (IDM)", color="tab:orange", linestyle="--")
     axes[0].invert_yaxis()
-    axes[0].set_xlabel("Longitudinal position [m]")
+    axes[0].set_xlabel("Gap [m]")
     axes[0].set_ylabel("Time [s]")
-    axes[0].set_title("Trajectory (s-t)")
+    axes[0].set_title("Gap–t (headway over time)")
     axes[0].legend()
 
     ax1 = axes[1]
@@ -172,7 +196,7 @@ def plot_ghost_car_validation(data: Dict[str, np.ndarray], save_path: Path | Non
     ax1.set_xlabel("Time [s]")
     ax1.set_ylabel("Speed [m/s]", color="tab:blue")
     ax2.set_ylabel("Acceleration [m/s²]", color="tab:red")
-    ax1.set_title("Kinematics")
+    ax1.set_title("Kinematics (severe episode)")
 
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()

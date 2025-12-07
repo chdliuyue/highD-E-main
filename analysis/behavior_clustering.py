@@ -15,10 +15,33 @@ def build_behavior_features(df_mec: pd.DataFrame) -> pd.DataFrame:
     """
     Build feature matrix for behavioral clustering from MEC data.
 
-    Features include min TTC, conflict duration, acceleration extremes,
-    velocity drop, and MEC metrics when available. Missing columns are
-    filled with NaN and later imputed.
+    Adds stricter filtering to focus on severe episodes and derives richer
+    kinematic/energy features before standardisation.
     """
+
+    df = df_mec.copy()
+    # Focus on severe conflicts to avoid diluting clusters
+    df = df[(df.get("min_TTC_conf") < 3.0) & (df.get("conf_duration") >= 0.8)].copy()
+
+    # Derive acceleration extremes if not present
+    if "a_min" not in df:
+        for col in ["a_long_smooth_min", "a_long_min"]:
+            if col in df:
+                df["a_min"] = df[col]
+                break
+    if "a_max" not in df:
+        for col in ["a_long_smooth_max", "a_long_max"]:
+            if col in df:
+                df["a_max"] = df[col]
+                break
+
+    # Velocity drop across the conflict window
+    if "v_drop" not in df:
+        if "v_max" in df and "v_min" in df:
+            df["v_drop"] = df["v_max"] - df["v_min"]
+        elif "v_mean" in df and "v_std" in df:
+            df["v_drop"] = df["v_mean"] + df["v_std"]
+
     feature_cols = [
         "min_TTC_conf",
         "conf_duration",
@@ -28,7 +51,6 @@ def build_behavior_features(df_mec: pd.DataFrame) -> pd.DataFrame:
         "MEC_CO2_per_km",
     ]
 
-    df = df_mec.copy()
     for col in feature_cols:
         if col not in df:
             df[col] = np.nan
@@ -40,6 +62,9 @@ def build_behavior_features(df_mec: pd.DataFrame) -> pd.DataFrame:
             df_features[col] = 0.0
         else:
             df_features[col].fillna(df_features[col].median(), inplace=True)
+
+    df_features["min_TTC_conf"].fillna(df_features["min_TTC_conf"].median(), inplace=True)
+    df_features["conf_duration"].fillna(df_features["conf_duration"].median(), inplace=True)
 
     return df_features
 
@@ -145,9 +170,9 @@ def plot_cluster_centroid_timeseries(
             continue
 
         t_ref = t_list[0]
-        v_mean = np.nanmean(np.vstack(v_list), axis=0)
-        a_mean = np.nanmean(np.vstack(a_list), axis=0)
-        co2_mean = np.nanmean(np.vstack(co2_list), axis=0)
+        v_mean = np.nanmedian(np.vstack(v_list), axis=0)
+        a_mean = np.nanmedian(np.vstack(a_list), axis=0)
+        co2_mean = np.nanmedian(np.vstack(co2_list), axis=0)
         cluster_means.append((cluster_id, t_ref, v_mean, a_mean, co2_mean))
 
     if not cluster_means:
