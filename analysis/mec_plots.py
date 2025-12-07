@@ -38,26 +38,29 @@ def plot_mec_distributions(df_mec: pd.DataFrame, save_path: Path | None = None) 
     if df_mec.empty:
         return
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    severity_bins = df_mec["severity_bin"].cat.categories if df_mec["severity_bin"].dtype.name == "category" else sorted(df_mec["severity_bin"].unique())
+    if "severity_bin" not in df_mec:
+        df_mec = add_severity_bins(df_mec)
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+    severity_order = ["<1.5", "1.5-2.5", "2.5-3.5", ">=3.5"]
+    severity_bins = [b for b in severity_order if b in df_mec["severity_bin"].astype(str).unique()]
     veh_classes = sorted(df_mec["veh_class"].unique()) if "veh_class" in df_mec else ["All"]
+    colors = plt.get_cmap("tab10")(range(len(veh_classes)))
 
     positions = np.arange(len(severity_bins))
-    width = 0.35
+    width = 0.35 if len(veh_classes) > 1 else 0.5
     for i, veh in enumerate(veh_classes):
         subset = df_mec[df_mec.get("veh_class", veh) == veh]
         data = [subset.loc[subset["severity_bin"] == b, "MEC_CO2_per_km"].dropna() for b in severity_bins]
         box = ax.boxplot(
             data,
-            positions=positions + (i - 0.5) * width,
+            positions=positions + (i - (len(veh_classes) - 1) / 2) * width,
             widths=width,
             patch_artist=True,
-            boxprops={"facecolor": "C" + str(i)},
+            boxprops={"facecolor": colors[i], "alpha": 0.55},
             medianprops={"color": "black"},
         )
-        for patch in box["boxes"]:
-            patch.set_alpha(0.6)
-        ax.plot([], [], color="C" + str(i), label=str(veh))
+        ax.plot([], [], color=colors[i], label=str(veh))
 
     ax.set_xticks(positions)
     ax.set_xticklabels(severity_bins)
@@ -65,20 +68,29 @@ def plot_mec_distributions(df_mec: pd.DataFrame, save_path: Path | None = None) 
     ax.set_xlabel("Severity bin (min TTC during conflict)")
     ax.set_title("MEC distributions by severity and vehicle class")
     if len(veh_classes) > 1:
-        ax.legend()
+        ax.legend(title="Vehicle class")
 
     fig.tight_layout()
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=200)
+    else:
+        plt.show()
     plt.close(fig)
 
 
 def build_mec_summary_table(df_mec: pd.DataFrame) -> pd.DataFrame:
     """Generate MEC summary grouped by severity and flow state."""
+
     df = df_mec.copy()
+    if "severity_bin" not in df:
+        df = add_severity_bins(df)
     if "flow_state" not in df:
         df["flow_state"] = "unknown"
+
+    duration_col = next((c for c in ["conf_duration", "duration"] if c in df.columns), None)
+    real_col = next((c for c in ["E_real_CO2_per_km", "Fuel_real_CO2_per_km", "Fuel_real"] if c in df.columns), None)
+    base_col = next((c for c in ["E_base_CO2_per_km", "Fuel_base_CO2_per_km", "Fuel_base"] if c in df.columns), None)
 
     group_cols = ["severity_bin", "flow_state"]
     grouped = df.groupby(group_cols)
@@ -86,12 +98,17 @@ def build_mec_summary_table(df_mec: pd.DataFrame) -> pd.DataFrame:
         lambda g: pd.Series(
             {
                 "n_events": len(g),
-                "mean_duration": g.get("duration", pd.Series(dtype=float)).mean(),
-                "mean_Fuel_real": g.get("E_real_CO2_per_km", pd.Series(dtype=float)).mean(),
-                "mean_Fuel_base": g.get("E_base_CO2_per_km", pd.Series(dtype=float)).mean(),
-                "mean_MEC": g.get("MEC_CO2_per_km", pd.Series(dtype=float)).mean(),
+                "mean_duration": g[duration_col].mean() if duration_col else np.nan,
+                "mean_Fuel_real": g[real_col].mean() if real_col else np.nan,
+                "mean_Fuel_base": g[base_col].mean() if base_col else np.nan,
+                "mean_MEC_CO2_per_km": g.get("MEC_CO2_per_km", pd.Series(dtype=float)).mean(),
             }
         )
     ).reset_index()
-    summary["MEC_share"] = summary["mean_MEC"] / summary["mean_Fuel_real"]
+
+    summary["MEC_share_pct"] = (summary["mean_MEC_CO2_per_km"] / summary["mean_Fuel_real"]) * 100
+    severity_order = pd.Categorical(summary["severity_bin"], ["<1.5", "1.5-2.5", "2.5-3.5", ">=3.5"])
+    summary["severity_bin"] = severity_order
+    summary.sort_values(["severity_bin", "flow_state"], inplace=True)
+    summary.reset_index(drop=True, inplace=True)
     return summary

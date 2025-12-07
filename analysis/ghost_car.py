@@ -146,7 +146,8 @@ def plot_ghost_car_validation(data: Dict[str, np.ndarray], save_path: Path | Non
 
     Args:
         data: Dictionary returned by :func:`simulate_ghost_car`.
-        save_path: Optional path to save the figure.
+        save_path: Optional path to save the figure. If ``None``, the figure is
+            shown interactively.
     """
     if not data:
         return
@@ -181,4 +182,6 @@ def plot_ghost_car_validation(data: Dict[str, np.ndarray], save_path: Path | Non
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=200)
+    else:
+        plt.show()
     plt.close(fig)

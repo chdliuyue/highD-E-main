@@ -73,4 +73,6 @@ def plot_trajectories_on_map(df_l1: pd.DataFrame, df_L2_conf: pd.DataFrame, rec_
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=200)
+    else:
+        plt.show()
     plt.close(fig)
