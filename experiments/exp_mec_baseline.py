@@ -12,10 +12,6 @@ from analysis.mec_baseline import (
     match_baseline_for_conflicts,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-OUT_ROOT = PROJECT_ROOT / "data" / "analysis"
-
-
 def _print_group_stats(df: pd.DataFrame, label: str) -> None:
     if df.empty:
         print(f"{label}: no samples")
@@ -27,6 +23,7 @@ def _print_group_stats(df: pd.DataFrame, label: str) -> None:
 
 def run_mec_baseline_experiment(
     recordings: Sequence[int] | None = None,
+    output_root: Path | str = "output",
 ) -> None:
     """
     事件级 MEC (data-driven baseline) 实验主入口。
@@ -45,8 +42,9 @@ def run_mec_baseline_experiment(
         print("No matched MEC samples available.")
         return
 
-    OUT_ROOT.mkdir(parents=True, exist_ok=True)
-    out_path = OUT_ROOT / "L2_conf_mec_baseline.parquet"
+    out_root = Path(output_root) / "mec"
+    out_root.mkdir(parents=True, exist_ok=True)
+    out_path = out_root / "L2_conf_mec_baseline.parquet"
     df_mec.to_parquet(out_path, index=False)
     print(f"Saved MEC dataframe to {out_path}")
 

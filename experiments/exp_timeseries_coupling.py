@@ -9,15 +9,12 @@ from analysis.timeseries_coupling import (
     plot_mean_timeseries,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-FIG_ROOT = PROJECT_ROOT / "figs" / "timeseries_coupling"
-
-
 def run_timeseries_coupling_experiment(
     recordings: Sequence[int],
     frame_rate: float = 25.0,
     t_window: tuple[float, float] = (-5.0, 10.0),
     max_episodes: int = 1000,
+    output_root: Path | str = "output",
 ) -> None:
     """
     核心实验入口：
@@ -27,6 +24,8 @@ def run_timeseries_coupling_experiment(
     """
 
     rec_ids = tuple(int(r) for r in recordings)
+    fig_root = Path(output_root) / "timeseries_coupling"
+    fig_root.mkdir(parents=True, exist_ok=True)
     agg_result = aggregate_timeseries_over_episodes(
         rec_ids=rec_ids,
         frame_rate=frame_rate,
@@ -48,7 +47,7 @@ def run_timeseries_coupling_experiment(
         print("No timeseries available for plotting.")
         return
 
-    fig_path = FIG_ROOT / "timeseries_mean.png"
+    fig_path = fig_root / "timeseries_mean.png"
     plot_mean_timeseries(
         t=t,
         TTC_mean=agg_result.get("TTC_mean", np.array([])),

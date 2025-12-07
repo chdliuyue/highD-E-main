@@ -4,16 +4,17 @@ import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ANALYSIS_ROOT = PROJECT_ROOT / "data" / "analysis"
+ANALYSIS_ROOT = PROJECT_ROOT / "output" / "mec"
 
 
-def load_conflict_mec() -> pd.DataFrame:
+def load_conflict_mec(base_dir: Path | None = None) -> pd.DataFrame:
     """
     读取在阶段 2 中生成的 MEC 数据。
     """
 
-    parquet_path = ANALYSIS_ROOT / "L2_conf_mec_baseline.parquet"
-    csv_path = ANALYSIS_ROOT / "L2_conf_mec_baseline.csv"
+    root = base_dir or ANALYSIS_ROOT
+    parquet_path = root / "L2_conf_mec_baseline.parquet"
+    csv_path = root / "L2_conf_mec_baseline.csv"
     if parquet_path.exists():
         return pd.read_parquet(parquet_path)
     if csv_path.exists():
