@@ -6,7 +6,7 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EVENTS_ROOT = PROJECT_ROOT / "data" / "processed" / "highD" / "events"
-DEFAULT_MEC_PATH = PROJECT_ROOT / "data" / "analysis" / "L2_conf_mec_baseline.parquet"
+DEFAULT_MEC_PATH = PROJECT_ROOT / "output" / "mec" / "L2_conf_mec_baseline.parquet"
 
 
 def _default_rec_ids(rec_ids: Sequence[int] | None) -> Sequence[int]:
