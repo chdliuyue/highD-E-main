@@ -10,10 +10,17 @@ import pandas as pd
 from analysis.ghost_car import plot_ghost_car_validation, select_severe_conflicts, simulate_ghost_car
 from analysis.timeseries_coupling import (
     aggregate_timeseries_with_stats,
+    compute_phase_co2_shares,
     plot_ttc_co2_alignment_with_ci,
 )
 from analysis.phase_plane import build_phase_plane_samples, plot_safety_energy_phase_plane
-from analysis.mec_plots import add_severity_bins, build_mec_summary_table, load_mec_data, plot_mec_distributions
+from analysis.mec_plots import (
+    add_severity_bins,
+    build_mec_summary_table,
+    compute_mec_per_km,
+    load_mec_data,
+    plot_mec_distributions,
+)
 from analysis.behavior_clustering import (
     build_behavior_features,
     cluster_behaviors,
@@ -73,8 +80,9 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
         if severe.empty:
             print("No severe conflicts found for ghost car validation.")
         else:
-            episode = severe.iloc[0]
-            idm_params = {"v0": 30.0, "T": 1.5, "s0": 2.0, "a_max": 1.5, "b_comf": 2.0}
+            # Pick the most severe episode (lowest TTC) to emphasize contrast
+            episode = severe.sort_values("min_TTC_conf").iloc[0]
+            idm_params = {"v0": 32.0, "T": 1.6, "s0": 2.5, "a_max": 1.2, "b_comf": 3.0}
             data = simulate_ghost_car(df_l1, episode, idm_params)
             save_path = fig_dir / f"01_ghost_car_validation_rec{rec_id:02d}_event{episode.name}.png"
             plot_ghost_car_validation(data, save_path)
@@ -99,6 +107,34 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
             )
             print("Saved TTC–CO2 coupling plot.")
 
+            phase_df = compute_phase_co2_shares(
+                agg.get("co2_stack", np.array([])), agg["t_grid"], agg.get("min_ttc_list")
+            )
+            if not phase_df.empty:
+                bins = [(-np.inf, 2.0), (2.0, 3.0), (3.0, 4.0), (4.0, np.inf)]
+                labels = ["<2", "2-3", "3-4", ">=4"]
+                phase_df["severity_bin"] = pd.cut(
+                    phase_df["min_TTC_conf"], bins=[b[0] for b in bins] + [bins[-1][1]], labels=labels
+                )
+                table_rows = []
+                for label in labels:
+                    subset = phase_df[phase_df["severity_bin"] == label]
+                    table_rows.append(
+                        {
+                            "severity_bin": label,
+                            "mean_share_pre": subset["share_pre"].mean(),
+                            "mean_share_core": subset["share_core"].mean(),
+                            "mean_share_rec": subset["share_rec"].mean(),
+                            "median_share_rec": subset["share_rec"].median(),
+                            "n_events": len(subset),
+                        }
+                    )
+                phase_summary = pd.DataFrame(table_rows)
+                out_path = table_dir / "table02_phase_co2_shares.csv"
+                phase_summary.to_csv(out_path, index=False)
+                print("Phase CO2 shares (mean):\n", phase_summary)
+                print(f"Saved phase share table to {out_path}")
+
     if task in {"phase_plane", "all"}:
         rec_id = recordings[0]
         df_l1 = _load_l1(rec_id)
@@ -121,7 +157,7 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
         if df_mec.empty:
             print("MEC data unavailable.")
         else:
-            df_mec = add_severity_bins(df_mec)
+            df_mec = compute_mec_per_km(add_severity_bins(df_mec))
             plot_mec_distributions(df_mec, save_path=fig_dir / "04_mec_distributions.png")
             summary = build_mec_summary_table(df_mec)
             out_path = table_dir / "table01_mec_summary.csv"
@@ -138,11 +174,22 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
         if df_mec.empty:
             print("MEC data unavailable for clustering.")
         else:
+            df_mec = compute_mec_per_km(df_mec)
             feature_df = build_behavior_features(df_mec)
             clustered = cluster_behaviors(feature_df)
-            cluster_path = DEFAULT_MEC_PATH.parent / "L2_conf_mec_clusters.parquet"
+            cluster_path = PROJECT_ROOT / "data" / "analysis" / "L2_conf_mec_clusters.parquet"
             clustered.to_parquet(cluster_path, index=False)
             print(f"Saved cluster assignments to {cluster_path}")
+
+            for cid, group in clustered.groupby("cluster"):
+                stats = {
+                    "n": len(group),
+                    "median_min_TTC_conf": group["min_TTC_conf"].median(),
+                    "median_conf_duration": group["conf_duration"].median(),
+                    "median_a_min": group["a_min"].median(),
+                    "median_MEC_CO2_per_km": group.get("MEC_CO2_per_km", pd.Series(dtype=float)).median(),
+                }
+                print(f"Cluster {cid} stats: {stats}")
 
             rec_subset = recordings[:3]
             df_l1_all = pd.concat([_load_l1(rid).assign(recordingId=rid) for rid in rec_subset], ignore_index=True)

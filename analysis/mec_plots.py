@@ -24,10 +24,11 @@ def add_severity_bins(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add a categorical ``severity_bin`` based on ``min_TTC_conf``.
 
-    Bins used: ``<1.5``, ``1.5-2.5``, ``2.5-3.5``, ``>=3.5``.
+    Bins used: ``<2``, ``2-3``, ``3-4``, ``>=4`` to stay consistent with
+    other tables.
     """
-    bins = [-np.inf, 1.5, 2.5, 3.5, np.inf]
-    labels = ["<1.5", "1.5-2.5", "2.5-3.5", ">=3.5"]
+    bins = [-np.inf, 2.0, 3.0, 4.0, np.inf]
+    labels = ["<2", "2-3", "3-4", ">=4"]
     df = df.copy()
     df["severity_bin"] = pd.cut(df["min_TTC_conf"], bins=bins, labels=labels)
     return df
@@ -46,7 +47,7 @@ def plot_mec_distributions(df_mec: pd.DataFrame, save_path: Path | None = None) 
         df_mec = add_severity_bins(df_mec)
 
     fig, ax = plt.subplots(figsize=(9, 6))
-    severity_order = ["<1.5", "1.5-2.5", "2.5-3.5", ">=3.5"]
+    severity_order = ["<2", "2-3", "3-4", ">=4"]
     severity_bins = [b for b in severity_order if b in df_mec["severity_bin"].astype(str).unique()]
     veh_classes = sorted(df_mec["veh_class"].unique()) if "veh_class" in df_mec else ["All"]
     colors = plt.get_cmap("tab10")(range(len(veh_classes)))
@@ -83,18 +84,56 @@ def plot_mec_distributions(df_mec: pd.DataFrame, save_path: Path | None = None) 
     plt.close(fig)
 
 
+def _ensure_distance(df: pd.DataFrame) -> pd.Series:
+    """Ensure ``dist_real`` exists using available longitudinal columns."""
+
+    if "dist_real" in df:
+        return df["dist_real"]
+
+    for start_col, end_col in [
+        ("s_start", "s_end"),
+        ("s_long_start", "s_long_end"),
+        ("s_min", "s_max"),
+    ]:
+        if start_col in df and end_col in df:
+            return df[end_col] - df[start_col]
+
+    # Fallback: use duration * mean speed as a proxy
+    if "conf_duration" in df and "v_mean" in df:
+        return df["conf_duration"] * df["v_mean"]
+
+    return pd.Series(np.nan, index=df.index)
+
+
+def compute_mec_per_km(df_mec: pd.DataFrame) -> pd.DataFrame:
+    """Augment MEC dataframe with per-km energy metrics."""
+
+    df = df_mec.copy()
+    df["dist_real"] = _ensure_distance(df)
+
+    dist_km = df["dist_real"] / 1000.0
+    dist_km = dist_km.where(dist_km > 1e-3)  # avoid division explosions
+
+    for col in ["E_real_CO2", "E_base_CO2"]:
+        if col not in df:
+            df[col] = np.nan
+
+    df["E_real_CO2_per_km"] = df["E_real_CO2"] / dist_km
+    df["E_base_CO2_per_km"] = df["E_base_CO2"] / dist_km
+    df["MEC_CO2_per_km"] = df["E_real_CO2_per_km"] - df["E_base_CO2_per_km"]
+    return df
+
+
 def build_mec_summary_table(df_mec: pd.DataFrame) -> pd.DataFrame:
     """Generate MEC summary grouped by severity and flow state."""
 
-    df = df_mec.copy()
+    df = compute_mec_per_km(df_mec)
     if "severity_bin" not in df:
         df = add_severity_bins(df)
     if "flow_state" not in df:
         df["flow_state"] = "unknown"
 
     duration_col = next((c for c in ["conf_duration", "duration"] if c in df.columns), None)
-    real_col = next((c for c in ["E_real_CO2_per_km", "Fuel_real_CO2_per_km", "Fuel_real"] if c in df.columns), None)
-    base_col = next((c for c in ["E_base_CO2_per_km", "Fuel_base_CO2_per_km", "Fuel_base"] if c in df.columns), None)
 
     group_cols = ["severity_bin", "flow_state"]
     grouped = df.groupby(group_cols)
@@ -103,15 +142,15 @@ def build_mec_summary_table(df_mec: pd.DataFrame) -> pd.DataFrame:
             {
                 "n_events": len(g),
                 "mean_duration": g[duration_col].mean() if duration_col else np.nan,
-                "mean_Fuel_real": g[real_col].mean() if real_col else np.nan,
-                "mean_Fuel_base": g[base_col].mean() if base_col else np.nan,
+                "mean_Fuel_real": g.get("E_real_CO2_per_km", pd.Series(dtype=float)).mean(),
+                "mean_Fuel_base": g.get("E_base_CO2_per_km", pd.Series(dtype=float)).mean(),
                 "mean_MEC_CO2_per_km": g.get("MEC_CO2_per_km", pd.Series(dtype=float)).mean(),
             }
         )
     ).reset_index()
 
     summary["MEC_share_pct"] = (summary["mean_MEC_CO2_per_km"] / summary["mean_Fuel_real"]) * 100
-    severity_order = pd.Categorical(summary["severity_bin"], ["<1.5", "1.5-2.5", "2.5-3.5", ">=3.5"])
+    severity_order = pd.Categorical(summary["severity_bin"], ["<2", "2-3", "3-4", ">=4"])
     summary["severity_bin"] = severity_order
     summary.sort_values(["severity_bin", "flow_state"], inplace=True)
     summary.reset_index(drop=True, inplace=True)

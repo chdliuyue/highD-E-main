@@ -16,7 +16,15 @@ class IDM:
     baseline episodes in the dataset.
     """
 
-    def __init__(self, v0: float, T: float, s0: float, a_max: float, b_comf: float, delta: float = 4.0) -> None:
+    def __init__(
+        self,
+        v0: float,
+        T: float,
+        s0: float,
+        a_max: float,
+        b_comf: float,
+        delta: float = 4.0,
+    ) -> None:
         """
         Initialize the IDM with standard parameters.
 
@@ -32,6 +40,7 @@ class IDM:
         self.T = T
         self.s0 = s0
         self.a_max = a_max
+        # Slightly higher comfortable deceleration keeps ghost responses smooth
         self.b_comf = b_comf
         self.delta = delta
 
@@ -88,7 +97,10 @@ class IDM:
             gap = max(leader_pos[i] - ghost_pos[i], 1e-3)
             dv = ghost_speed[i] - leader_speed[i]
             desired_gap = self._desired_gap(ghost_speed[i], dv)
-            acc = self.a_max * (1 - (ghost_speed[i] / max(self.v0, 1e-3)) ** self.delta - (desired_gap / gap) ** 2)
+            acc = self.a_max * (
+                1 - (ghost_speed[i] / max(self.v0, 1e-3)) ** self.delta - (desired_gap / gap) ** 2
+            )
+            # Clip to keep |a| within a comfortable range
             acc = float(np.clip(acc, -self.b_comf, self.a_max))
 
             ghost_speed[i + 1] = max(0.0, ghost_speed[i] + acc * dt_step)

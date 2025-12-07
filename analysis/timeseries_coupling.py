@@ -113,6 +113,7 @@ def aggregate_timeseries_over_episodes(
     ttc_stack: list[np.ndarray] = []
     co2_stack: list[np.ndarray] = []
     lags: list[float] = []
+    min_ttc_list: list[float] = []
 
     for rec_id in rec_ids:
         try:
@@ -148,6 +149,7 @@ def aggregate_timeseries_over_episodes(
 
             ttc_stack.append(ttc_interp)
             co2_stack.append(co2_interp)
+            min_ttc_list.append(float(np.nanmin(ttc_series)))
 
             peak_idx = int(np.nanargmax(co2_interp)) if np.any(~np.isnan(co2_interp)) else 0
             lags.append(t_grid[peak_idx])
@@ -167,7 +169,70 @@ def aggregate_timeseries_over_episodes(
         "CO2_lower": co2_low,
         "CO2_upper": co2_up,
         "lags": np.array(lags),
+        "co2_stack": co2_arr,
+        "min_ttc_list": np.array(min_ttc_list),
     }
+
+
+def compute_phase_co2_shares(
+    co2_stack: np.ndarray,
+    t_grid: np.ndarray,
+    min_ttc_list: np.ndarray | None = None,
+    frame_rate: float = 25.0,
+    t_window: tuple[float, float] = (-5.0, 10.0),
+) -> pd.DataFrame:
+    """
+    基于对齐后的时间序列，计算 pre/core/recovery 三段 CO₂ 贡献占比。
+
+    - pre:     [-5, -1) s
+    - core:    [-1, +1] s
+    - recovery:(+1, +10] s
+
+    Args:
+        co2_stack: shape (n_events, n_time) 对齐到 t=0 的 CO₂ 速率矩阵。
+        t_grid: 与 co2_stack 对应的时间网格。
+        min_ttc_list: 每个 episode 的 min_TTC_conf，便于分组统计。
+        frame_rate: 用于估计时间步长的帧率。
+        t_window: 时间窗范围（用于安全截断）。
+
+    Returns:
+        DataFrame，其中包含每条 episode 的阶段能耗占比。
+    """
+
+    if co2_stack.size == 0 or t_grid.size == 0:
+        return pd.DataFrame(columns=["share_pre", "share_core", "share_rec", "episode_idx", "min_TTC_conf"])
+
+    dt = float(np.mean(np.diff(t_grid))) if len(t_grid) > 1 else 1.0 / frame_rate
+    t_start, t_end = t_window
+
+    pre_mask = (t_grid >= max(-5.0, t_start)) & (t_grid < -1.0)
+    core_mask = (t_grid >= -1.0) & (t_grid <= 1.0)
+    rec_mask = (t_grid > 1.0) & (t_grid <= min(10.0, t_end))
+
+    shares = []
+    for idx, co2_curve in enumerate(co2_stack):
+        co2_curve = np.asarray(co2_curve, dtype=float)
+        e_pre = float(np.nansum(co2_curve[pre_mask]) * dt)
+        e_core = float(np.nansum(co2_curve[core_mask]) * dt)
+        e_rec = float(np.nansum(co2_curve[rec_mask]) * dt)
+        total = e_pre + e_core + e_rec
+        if total <= 0:
+            share_pre = share_core = share_rec = np.nan
+        else:
+            share_pre = e_pre / total
+            share_core = e_core / total
+            share_rec = e_rec / total
+        shares.append(
+            {
+                "episode_idx": idx,
+                "share_pre": share_pre,
+                "share_core": share_core,
+                "share_rec": share_rec,
+                "min_TTC_conf": float(min_ttc_list[idx]) if min_ttc_list is not None and len(min_ttc_list) > idx else np.nan,
+            }
+        )
+
+    return pd.DataFrame(shares)
 
 
 def plot_mean_timeseries(
