@@ -1,4 +1,1 @@
-"""Analysis module placeholder.
-
-TODO: add analysis routines and notebooks.
-"""
+"""Analysis package for data exploration."""
