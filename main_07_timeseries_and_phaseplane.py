@@ -21,9 +21,6 @@ def main() -> None:
     else:
         rec_ids = [int(x) for x in args.recordings.split(",") if x.strip()]
 
-    for i, rec_id in enumerate(rec_ids, start=1):
-        print(f"  [Stage 07] Will process recording {rec_id:02d} ({i}/{len(rec_ids)})")
-
     print(f"[Stage 07] Running time-series alignment and phase-plane for rec_ids={rec_ids}")
     run_timeseries_and_phaseplane(rec_ids)
     print("[Stage 07] Stage finished.")

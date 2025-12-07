@@ -86,10 +86,13 @@ def build_phase_plane_samples(
     energy_all: list[float] = []
     severe_events: list[dict[str, np.ndarray]] = []
 
-    for rec_id in rec_ids:
+    total = len(rec_ids)
+    for idx, rec_id in enumerate(rec_ids, start=1):
+        print(f"[Stage 07] ({idx}/{total}) Building phase-plane samples for rec {rec_id:02d}...")
         df_l1 = _load_l1(rec_id)
         df_l2 = _load_l2_conflicts(rec_id)
         if df_l1.empty or df_l2.empty:
+            print(f"  [Stage 07] Skipping recording {rec_id:02d}: missing L1/L2 data")
             continue
 
         df_l2_sorted = df_l2.sort_values("min_TTC_conf") if "min_TTC_conf" in df_l2.columns else df_l2
@@ -107,6 +110,9 @@ def build_phase_plane_samples(
                 is_severe &= row["conf_duration"] >= 0.8
             if is_severe and len(severe_events) < n_example_events:
                 severe_events.append(ep)
+        print(
+            f"  [Stage 07] Recording {rec_id:02d} contributed {len(ttc_all)} TTC samples so far"
+        )
 
     ttc_arr = np.asarray(ttc_all, dtype=float)
     energy_arr = np.asarray(energy_all, dtype=float)

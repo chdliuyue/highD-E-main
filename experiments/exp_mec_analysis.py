@@ -22,20 +22,25 @@ def run_mec_analysis() -> None:
     Unified entry point for MEC distribution and heterogeneity analysis.
     """
 
+    print("[Stage 05] Loading MEC data...")
     df = load_mec_data()
     if df.empty:
         print("[WARN] MEC DataFrame is empty; aborting analysis.")
         return
 
+    print("[Stage 05] Adding severity and duration bins...")
     df = add_severity_bins(df)
     df = add_duration_bins(df)
 
+    print("[Stage 05] Computing basic MEC statistics...")
     stats_df = basic_mec_stats(df)
     if not stats_df.empty:
         print("\nSaved basic statistics to", TABLE_ROOT / "mec_basic_stats.csv")
 
+    print("[Stage 05] Plotting MEC distributions...")
     plot_mec_distributions(df, save_path=FIG_ROOT / "01_mec_distributions.png")
 
+    print("[Stage 05] Building MEC summary table...")
     summary_df = build_mec_summary_table(df)
     if not summary_df.empty:
         print("Summary table head:\n", summary_df.head())

@@ -107,8 +107,9 @@ def summarize_l1_overall(rec_ids: Sequence[int]) -> pd.DataFrame:
     """
 
     summaries = []
-    for rec_id in rec_ids:
-        print(f"Summarizing L1 for recording {rec_id:02d}...")
+    total = len(rec_ids)
+    for idx, rec_id in enumerate(rec_ids, start=1):
+        print(f"[{idx}/{total}] Summarizing L1 for recording {rec_id:02d}...")
         summaries.append(summarize_l1_for_recording(rec_id))
 
     summary_df = pd.DataFrame(summaries)

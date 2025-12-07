@@ -34,11 +34,13 @@ def run_behavior_profiling(
     """
 
     df_mec = load_mec_events()
+    print(f"[behavior_profiling] Loaded MEC events: {len(df_mec)} rows")
     if df_mec.empty:
         print("[behavior_profiling] MEC data is empty; aborting.")
         return
 
     df_filtered = filter_events_for_clustering(df_mec)
+    print(f"[behavior_profiling] Events after filtering: {len(df_filtered)} rows")
     if df_filtered.empty:
         print("[behavior_profiling] No events remain after filtering.")
         return
@@ -52,6 +54,7 @@ def run_behavior_profiling(
         print("Cluster summary:")
         print(summary_df)
 
+    print("[behavior_profiling] Computing cluster centroids time series...")
     centroids = compute_cluster_centroid_timeseries(df_clustered, rec_ids=rec_ids)
     plot_cluster_centroids(centroids, save_path=FIG_ROOT / "01_behavior_clusters_centroid.png")
 

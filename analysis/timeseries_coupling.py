@@ -134,10 +134,13 @@ def aggregate_ttc_co2_timeseries(
     lags: list[float] = []
     episode_count = 0
 
-    for rec_id in rec_ids:
+    total = len(rec_ids)
+    for idx, rec_id in enumerate(rec_ids, start=1):
+        print(f"[Stage 07] ({idx}/{total}) Loading data for recording {rec_id:02d}...")
         df_l1 = _load_l1(rec_id)
         df_l2 = _load_l2_conflicts(rec_id)
         if df_l1.empty or df_l2.empty:
+            print(f"  [Stage 07] Skipping recording {rec_id:02d}: missing L1/L2 data")
             continue
 
         for _, row in df_l2.iterrows():
@@ -150,6 +153,9 @@ def aggregate_ttc_co2_timeseries(
             co2_stack.append(ts["co2"])
             lags.append(ts["lag"])
             episode_count += 1
+        print(
+            f"  [Stage 07] Processed recording {rec_id:02d} | episodes so far: {episode_count}"
+        )
 
     if not ttc_stack:
         empty = np.full_like(t_grid, np.nan, dtype=float)

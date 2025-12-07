@@ -324,7 +324,9 @@ def generate_mec_for_recordings(rec_ids: Sequence[int]) -> pd.DataFrame:
     """
 
     all_results = []
-    for rec_id in rec_ids:
+    total = len(rec_ids)
+    for idx, rec_id in enumerate(rec_ids, start=1):
+        print(f"[Stage 04] ({idx}/{total}) Matching baseline for recording {rec_id:02d}...")
         df_l1 = load_l1_for_recording(rec_id)
         df_conf, df_base = load_l2_for_recording(rec_id)
         rec_result = match_baseline_for_conflicts(df_conf, df_base, df_l1)
