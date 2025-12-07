@@ -1,4 +1,1 @@
-"""Models module placeholder.
-
-TODO: implement model architectures and training routines.
-"""
+"""Models package placeholder for future MEC/IDM implementations."""
