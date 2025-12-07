@@ -20,9 +20,6 @@ def main() -> None:
     else:
         rec_ids = [int(x) for x in args.recordings.split(",") if x.strip()]
 
-    for i, rec_id in enumerate(rec_ids, start=1):
-        print(f"  [Stage 04] Processing recording {rec_id:02d} ({i}/{len(rec_ids)})")
-
     run_mec_generation(rec_ids)
     print("[Stage 04] MEC generation finished.")
 

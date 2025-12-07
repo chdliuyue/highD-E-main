@@ -283,13 +283,15 @@ def compute_cluster_centroid_timeseries(
 
     l1_cache: dict[int, pd.DataFrame] = {}
     t_grid = np.arange(t_window[0], t_window[1] + 1e-6, 1.0 / frame_rate)
+    total_rec = len(rec_ids)
+    for idx, rec_id in enumerate(rec_ids, start=1):
+        print(f"[behavior_profiling] ({idx}/{total_rec}) Loading L1 for recording {int(rec_id):02d}...")
+        l1_cache.setdefault(int(rec_id), _load_l1_for_recording(int(rec_id)))
 
     for cluster_id, df_cluster in df_mec_clustered.groupby("cluster"):
         v_stack = []
         a_stack = []
         co2_stack = []
-        for rec_id in rec_ids:
-            l1_cache.setdefault(rec_id, _load_l1_for_recording(int(rec_id)))
         for _, event_row in df_cluster.iterrows():
             rec_val = event_row.get("rec_id", event_row.get("recordingId", np.nan))
             if pd.isna(rec_val):
