@@ -167,6 +167,8 @@ def plot_mean_timeseries(
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=200)
+    else:
+        plt.show()
     plt.close(fig)
 
 
@@ -206,11 +208,14 @@ def plot_ttc_co2_alignment_with_ci(
     axes[1].plot(t, CO2_mean, color="tab:red")
     axes[1].fill_between(t, CO2_lower, CO2_upper, color="tab:red", alpha=0.2)
     axes[1].axvline(0, color="k", linestyle=":", linewidth=1)
-    if "median" in lag_stats:
+    median_lag = lag_stats.get("median")
+    has_peak = np.any(~np.isnan(CO2_mean))
+    if median_lag is not None and not np.isnan(median_lag) and has_peak:
+        peak_val = np.nanmax(CO2_mean)
         axes[1].annotate(
-            f"lag={lag_stats['median']:.2f}s",
-            xy=(lag_stats["median"], np.nanmax(CO2_mean)),
-            xytext=(lag_stats["median"] + 0.5, np.nanmax(CO2_mean) * 0.9),
+            f"median lag = {median_lag:.2f}s",
+            xy=(median_lag, peak_val),
+            xytext=(median_lag + 0.5, peak_val * 0.9),
             arrowprops={"arrowstyle": "->"},
         )
     axes[1].set_ylabel("CO2 rate [g/s]")
@@ -221,4 +226,6 @@ def plot_ttc_co2_alignment_with_ci(
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=200)
+    else:
+        plt.show()
     plt.close(fig)

@@ -96,7 +96,7 @@ def plot_cluster_centroid_timeseries(
     features_with_cluster: pd.DataFrame,
     frame_rate: float = 25.0,
     t_window: tuple[float, float] = (-5.0, 10.0),
-    save_dir: Path | None = None,
+    save_path: Path | None = None,
 ) -> None:
     """
     Plot cluster-average velocity, acceleration, and CO2 rate time series.
@@ -107,10 +107,10 @@ def plot_cluster_centroid_timeseries(
         features_with_cluster: Feature dataframe with ``cluster`` labels.
         frame_rate: Frame rate (Hz).
         t_window: Time window around min TTC for alignment.
-        save_dir: Output directory.
+        save_path: Path to save the aggregated cluster comparison figure. If
+            ``None``, the figure is shown interactively.
     """
-    save_dir = save_dir or Path("figs")
-    save_dir.mkdir(parents=True, exist_ok=True)
+    cluster_means: list[tuple[int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = []
 
     for cluster_id, feats in features_with_cluster.groupby("cluster"):
         t_list: list[np.ndarray] = []
@@ -148,19 +148,32 @@ def plot_cluster_centroid_timeseries(
         v_mean = np.nanmean(np.vstack(v_list), axis=0)
         a_mean = np.nanmean(np.vstack(a_list), axis=0)
         co2_mean = np.nanmean(np.vstack(co2_list), axis=0)
+        cluster_means.append((cluster_id, t_ref, v_mean, a_mean, co2_mean))
 
-        fig, axes = plt.subplots(3, 1, figsize=(8, 8), sharex=True)
-        axes[0].plot(t_ref, v_mean, color="tab:blue")
-        axes[0].set_ylabel("v [m/s]")
-        axes[0].set_title(f"Cluster {cluster_id} centroid dynamics")
+    if not cluster_means:
+        return
 
-        axes[1].plot(t_ref, a_mean, color="tab:orange")
-        axes[1].set_ylabel("a [m/s²]")
+    colors = plt.get_cmap("tab10")(range(len(cluster_means)))
+    fig, axes = plt.subplots(3, 1, figsize=(9, 8), sharex=True)
 
-        axes[2].plot(t_ref, co2_mean, color="tab:red")
-        axes[2].set_ylabel("CO2 [g/s]")
-        axes[2].set_xlabel("Time aligned to min TTC [s]")
+    for color, (cluster_id, t_ref, v_mean, a_mean, co2_mean) in zip(colors, sorted(cluster_means, key=lambda x: x[0])):
+        axes[0].plot(t_ref, v_mean, label=f"Cluster {cluster_id}", color=color)
+        axes[1].plot(t_ref, a_mean, color=color)
+        axes[2].plot(t_ref, co2_mean, color=color)
 
-        fig.tight_layout()
-        fig.savefig(save_dir / f"behavior_clusters_cluster{cluster_id}.png", dpi=200)
-        plt.close(fig)
+    axes[0].set_ylabel("v [m/s]")
+    axes[0].set_title("Cluster centroid dynamics")
+    axes[0].legend()
+
+    axes[1].set_ylabel("a [m/s²]")
+
+    axes[2].set_ylabel("CO2 [g/s]")
+    axes[2].set_xlabel("Time aligned to min TTC [s]")
+
+    fig.tight_layout()
+    if save_path:
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, dpi=200)
+    else:
+        plt.show()
+    plt.close(fig)

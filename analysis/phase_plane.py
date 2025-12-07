@@ -98,4 +98,6 @@ def plot_safety_energy_phase_plane(
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=200)
+    else:
+        plt.show()
     plt.close(fig)
