@@ -52,6 +52,39 @@ def safe_nanmean_and_quantiles(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray,
     return mean, lower, upper
 
 
+def compute_lag_statistics(lags: np.ndarray) -> dict:
+    """Return basic statistics for lag values, handling empty inputs safely."""
+
+    if lags.size == 0:
+        return {"mean": np.nan, "median": np.nan, "q10": np.nan, "q90": np.nan, "count": 0}
+
+    return {
+        "mean": float(np.nanmean(lags)),
+        "median": float(np.nanmedian(lags)),
+        "q10": float(np.nanquantile(lags, 0.1)),
+        "q90": float(np.nanquantile(lags, 0.9)),
+        "count": int(np.sum(~np.isnan(lags))),
+    }
+
+
+def aggregate_timeseries_with_stats(
+    rec_ids: Sequence[int],
+    frame_rate: float = 25.0,
+    t_window: Tuple[float, float] = (-5.0, 10.0),
+    max_episodes: int | None = None,
+) -> tuple[Dict[str, np.ndarray], dict]:
+    """Aggregate time series and compute lag statistics in one call."""
+
+    agg = aggregate_timeseries_over_episodes(
+        rec_ids=rec_ids,
+        frame_rate=frame_rate,
+        t_window=t_window,
+        max_episodes=max_episodes,
+    )
+    lag_stats = compute_lag_statistics(agg.get("lags", np.array([])))
+    return agg, lag_stats
+
+
 def aggregate_timeseries_over_episodes(
     rec_ids: Sequence[int],
     frame_rate: float = 25.0,
