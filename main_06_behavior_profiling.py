@@ -6,6 +6,7 @@ from experiments.exp_behavior_profiling import run_behavior_profiling
 
 
 def main() -> None:
+    print("[Stage 06] Behavioral profiling and time-series portraits...")
     parser = argparse.ArgumentParser(
         description="Stage 06: Behavioral profiling and time-series portraits based on MEC."
     )
@@ -28,7 +29,11 @@ def main() -> None:
     else:
         rec_ids = [int(x) for x in args.recordings.split(",") if x.strip()]
 
+    for i, rec_id in enumerate(rec_ids, start=1):
+        print(f"  [Stage 06] Preparing recording {rec_id:02d} ({i}/{len(rec_ids)})")
+
     run_behavior_profiling(rec_ids=rec_ids, n_clusters=args.n_clusters)
+    print("[Stage 06] Behavioral profiling finished.")
 
 
 if __name__ == "__main__":
