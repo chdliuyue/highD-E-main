@@ -7,14 +7,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-MEC_PATH = Path("data/analysis/L2_conf_mec_baseline.parquet")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+MEC_PATH = PROJECT_ROOT / "output" / "mec" / "L2_conf_mec_baseline.parquet"
 
 
-def load_mec_data() -> pd.DataFrame:
-    """Read MEC data parquet file."""
-    if MEC_PATH.exists():
-        return pd.read_parquet(MEC_PATH)
-    raise FileNotFoundError(f"MEC data file not found at {MEC_PATH}")
+def load_mec_data(path: Path | None = None) -> pd.DataFrame:
+    """Read MEC data parquet file from ``path`` or the default output location."""
+
+    target = path or MEC_PATH
+    if target.exists():
+        return pd.read_parquet(target)
+    raise FileNotFoundError(f"MEC data file not found at {target}")
 
 
 def add_severity_bins(df: pd.DataFrame) -> pd.DataFrame:

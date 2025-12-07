@@ -8,16 +8,13 @@ from analysis.behavior_profiling import (
     simple_behavior_clustering,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-OUT_ROOT = PROJECT_ROOT / "data" / "analysis"
 
-
-def run_behavior_profiling_experiment() -> None:
+def run_behavior_profiling_experiment(output_root: Path | str = "output") -> None:
     """
     行为谱系实验主入口。
     """
 
-    df_mec = load_conflict_mec()
+    df_mec = load_conflict_mec(base_dir=Path(output_root) / "mec")
     if df_mec.empty:
         print("No MEC data available. Please run MEC experiment first.")
         return
@@ -38,7 +35,8 @@ def run_behavior_profiling_experiment() -> None:
     print("Cluster stats:")
     print(cluster_stats)
 
-    OUT_ROOT.mkdir(parents=True, exist_ok=True)
-    out_path = OUT_ROOT / "L2_conf_mec_behavior_clusters.parquet"
+    out_root = Path(output_root) / "behavior_profiling"
+    out_root.mkdir(parents=True, exist_ok=True)
+    out_path = out_root / "L2_conf_mec_behavior_clusters.parquet"
     clustered_df.to_parquet(out_path, index=False)
     print(f"Saved clustered dataframe to {out_path}")

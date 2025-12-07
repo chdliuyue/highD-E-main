@@ -19,9 +19,6 @@ from analysis.behavior_clustering import (
 from analysis.map_visualization import plot_trajectories_on_map
 
 
-FIG_DIR = Path("figs")
-
-
 def _load_l1(rec_id: int) -> pd.DataFrame:
     path = Path(f"data/processed/highD/data/recording_{rec_id:02d}/L1_master_frame.parquet")
     return pd.read_parquet(path)
@@ -32,7 +29,7 @@ def _load_L2_conf(rec_id: int) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
-def run_experiment(task: str, recordings: Sequence[int]) -> None:
+def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str = "output") -> None:
     """
     Dispatch experiment tasks for conflict–energy analysis.
 
@@ -45,6 +42,11 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
     - "all": Run all tasks sequentially.
     """
     task = task.lower()
+    output_root = Path(output_root)
+    fig_dir = output_root / "conflict_energy"
+    mec_dir = output_root / "mec"
+    fig_dir.mkdir(parents=True, exist_ok=True)
+    mec_dir.mkdir(parents=True, exist_ok=True)
     if task in {"ghost_car", "all"}:
         rec_id = recordings[0]
         df_l1 = _load_l1(rec_id)
@@ -56,7 +58,7 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
             episode = severe.iloc[0]
             idm_params = {"v0": 30.0, "T": 1.5, "s0": 2.0, "a": 1.5, "b": 2.0}
             data = simulate_ghost_car(df_l1, episode, idm_params)
-            save_path = FIG_DIR / f"ghost_car_validation_rec{rec_id:02d}_event{episode.name}.png"
+            save_path = fig_dir / f"ghost_car_validation_rec{rec_id:02d}_event{episode.name}.png"
             plot_ghost_car_validation(data, save_path)
             print(f"Ghost car validation saved to {save_path}")
 
@@ -82,7 +84,7 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
                 agg["CO2_lower"],
                 agg["CO2_upper"],
                 lag_stats,
-                save_path=FIG_DIR / "timeseries_coupling.png",
+                save_path=fig_dir / "timeseries_coupling.png",
             )
             print("Saved TTC–CO2 coupling plot.")
 
@@ -95,13 +97,13 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
             samples["TTC_all"],
             samples["energy_all"],
             samples["example_trajectories"],
-            save_path=FIG_DIR / "phase_plane_hysteresis.png",
+            save_path=fig_dir / "phase_plane_hysteresis.png",
         )
         print("Saved safety–energy phase plane plot.")
 
     if task in {"mec", "all"}:
         try:
-            df_mec = load_mec_data()
+            df_mec = load_mec_data(path=mec_dir / "L2_conf_mec_baseline.parquet")
         except FileNotFoundError as exc:
             print(str(exc))
             df_mec = pd.DataFrame()
@@ -109,17 +111,16 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
             print("MEC data unavailable.")
         else:
             df_mec = add_severity_bins(df_mec)
-            plot_mec_distributions(df_mec, save_path=FIG_DIR / "mec_distributions.png")
+            plot_mec_distributions(df_mec, save_path=fig_dir / "mec_distributions.png")
             summary = build_mec_summary_table(df_mec)
-            out_path = Path("data/analysis/mec_summary.csv")
-            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path = mec_dir / "mec_summary.csv"
             summary.to_csv(out_path, index=False)
             print(summary)
             print(f"Saved MEC summary to {out_path}")
 
     if task in {"clusters", "all"}:
         try:
-            df_mec = load_mec_data()
+            df_mec = load_mec_data(path=mec_dir / "L2_conf_mec_baseline.parquet")
         except FileNotFoundError as exc:
             print(str(exc))
             df_mec = pd.DataFrame()
@@ -128,8 +129,7 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
         else:
             feature_df = build_behavior_features(df_mec)
             clustered = cluster_behaviors(feature_df)
-            cluster_path = Path("data/analysis/L2_conf_mec_clusters.parquet")
-            cluster_path.parent.mkdir(parents=True, exist_ok=True)
+            cluster_path = mec_dir / "L2_conf_mec_clusters.parquet"
             clustered.to_parquet(cluster_path, index=False)
             print(f"Saved cluster assignments to {cluster_path}")
 
@@ -139,7 +139,7 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
                 df_mec,
                 df_l1_all,
                 clustered,
-                save_dir=FIG_DIR,
+                save_dir=fig_dir,
             )
 
     if task in {"map", "all"}:
@@ -150,6 +150,6 @@ def run_experiment(task: str, recordings: Sequence[int]) -> None:
             df_l1,
             df_L2,
             rec_id=rec_id,
-            save_path=FIG_DIR / f"map_trajectories_rec{rec_id:02d}.png",
+            save_path=fig_dir / f"map_trajectories_rec{rec_id:02d}.png",
         )
         print("Saved trajectory map plot.")
