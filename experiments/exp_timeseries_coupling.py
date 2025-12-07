@@ -4,10 +4,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-from analysis.timeseries_coupling import (
-    aggregate_timeseries_over_episodes,
-    plot_mean_timeseries,
-)
+from analysis.timeseries_coupling import aggregate_timeseries_with_stats, plot_mean_timeseries
 
 def run_timeseries_coupling_experiment(
     recordings: Sequence[int],
@@ -26,7 +23,7 @@ def run_timeseries_coupling_experiment(
     rec_ids = tuple(int(r) for r in recordings)
     fig_root = Path(output_root) / "timeseries_coupling"
     fig_root.mkdir(parents=True, exist_ok=True)
-    agg_result = aggregate_timeseries_over_episodes(
+    agg_result, lag_stats = aggregate_timeseries_with_stats(
         rec_ids=rec_ids,
         frame_rate=frame_rate,
         t_window=t_window,
@@ -37,11 +34,10 @@ def run_timeseries_coupling_experiment(
     lags = agg_result.get("lags", np.array([]))
 
     print(f"Aggregated recordings: {rec_ids}")
-    print(f"Episode used: {len(lags)}")
+    print(f"Episode used: {lag_stats['count']}")
     if lags.size > 0:
-        lag_series = pd.Series(lags)
         print("Lag stats [s]:")
-        print(lag_series.describe(percentiles=[0.1, 0.25, 0.5, 0.75, 0.9]))
+        print(pd.Series(lag_stats))
 
     if t.size == 0:
         print("No timeseries available for plotting.")

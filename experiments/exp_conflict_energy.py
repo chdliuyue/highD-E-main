@@ -8,7 +8,10 @@ import numpy as np
 import pandas as pd
 
 from analysis.ghost_car import plot_ghost_car_validation, select_severe_conflicts, simulate_ghost_car
-from analysis.timeseries_coupling import aggregate_timeseries_over_episodes, plot_ttc_co2_alignment_with_ci
+from analysis.timeseries_coupling import (
+    aggregate_timeseries_with_stats,
+    plot_ttc_co2_alignment_with_ci,
+)
 from analysis.phase_plane import build_phase_plane_samples, plot_safety_energy_phase_plane
 from analysis.mec_plots import add_severity_bins, build_mec_summary_table, load_mec_data, plot_mec_distributions
 from analysis.behavior_clustering import (
@@ -78,17 +81,10 @@ def run_experiment(task: str, recordings: Sequence[int], output_root: Path | str
             print(f"Ghost car validation saved to {save_path}")
 
     if task in {"timeseries", "all"}:
-        agg = aggregate_timeseries_over_episodes(recordings)
+        agg, lag_stats = aggregate_timeseries_with_stats(recordings)
         if agg["t_grid"].size == 0:
             print("No episodes available for time-series aggregation.")
         else:
-            lags = agg.get("lags", np.array([]))
-            lag_stats = {
-                "mean": float(np.nanmean(lags)) if lags.size > 0 else np.nan,
-                "median": float(np.nanmedian(lags)) if lags.size > 0 else np.nan,
-                "q10": float(np.nanquantile(lags, 0.1)) if lags.size > 0 else np.nan,
-                "q90": float(np.nanquantile(lags, 0.9)) if lags.size > 0 else np.nan,
-            }
             print("Lag statistics:", lag_stats)
             plot_ttc_co2_alignment_with_ci(
                 agg["t_grid"],
