@@ -17,6 +17,16 @@ TASK_CHOICES = {
     "behavior_profiling",
 }
 
+CONFLICT_TASK_CHOICES = {
+    "ghost_car",
+    "timeseries",
+    "phase_plane",
+    "mec",
+    "clusters",
+    "map",
+    "all",
+}
+
 
 def _parse_recording_list(rec_arg: str) -> list[int]:
     if rec_arg.lower() == "all":
@@ -40,6 +50,16 @@ def _parse_tasks(task_arg: str) -> List[str]:
     return sorted(requested)
 
 
+def _parse_conflict_task(task: str) -> str:
+    task = task.lower()
+    if task not in CONFLICT_TASK_CHOICES:
+        raise ValueError(
+            "Unknown conflict-energy subtask: "
+            f"{task}. Choose from {', '.join(sorted(CONFLICT_TASK_CHOICES))}."
+        )
+    return task
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Unified Stage 3-5 analysis entrypoint (conflict, coupling, MEC, behavior)",
@@ -57,6 +77,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--conflict-task",
         type=str,
         default="all",
+        choices=sorted(CONFLICT_TASK_CHOICES),
         help=(
             "Conflict-energy subtask: ghost_car, timeseries, phase_plane, mec, "
             "clusters, map, or all."
@@ -95,12 +116,13 @@ def main() -> None:
 
     tasks = _parse_tasks(args.tasks)
     recordings_list = _parse_recording_list(args.recordings)
+    conflict_task = _parse_conflict_task(args.conflict_task)
     mec_recordings: Sequence[int] | None = _parse_optional_recordings(args.recordings)
 
     for task in tasks:
         if task == "conflict_energy":
             run_conflict_energy(
-                task=args.conflict_task,
+                task=conflict_task,
                 recordings=recordings_list,
                 output_root=args.output_root,
             )
