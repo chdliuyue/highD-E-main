@@ -1,11 +1,12 @@
 """Time-series alignment between TTC and CO₂/energy rates."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict, Sequence, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 def _load_l1(rec_id: int) -> pd.DataFrame:
@@ -110,6 +111,39 @@ def aggregate_timeseries_over_episodes(
         "CO2_upper": co2_up,
         "lags": np.array(lags),
     }
+
+
+def plot_mean_timeseries(
+    t: np.ndarray,
+    TTC_mean: np.ndarray,
+    CO2_mean: np.ndarray,
+    save_path: Path | None = None,
+) -> None:
+    """Plot the mean TTC and CO2 time series on two stacked axes.
+
+    This helper keeps the plotting logic used by the experiment entry point
+    lightweight: it only draws the mean curves (no CI bands) and optionally
+    writes the result to ``save_path``.
+    """
+
+    fig, axes = plt.subplots(2, 1, figsize=(8, 5), sharex=True)
+
+    axes[0].plot(t, TTC_mean, color="tab:blue")
+    axes[0].axvline(0, color="k", linestyle=":", linewidth=1)
+    axes[0].set_ylabel("TTC [s]")
+    axes[0].set_title("Mean TTC around minimum")
+
+    axes[1].plot(t, CO2_mean, color="tab:red")
+    axes[1].axvline(0, color="k", linestyle=":", linewidth=1)
+    axes[1].set_ylabel("CO2 rate [g/s]")
+    axes[1].set_xlabel("Time aligned to min TTC [s]")
+    axes[1].set_title("Mean CO2 response")
+
+    fig.tight_layout()
+    if save_path:
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, dpi=200)
+    plt.close(fig)
 
 
 def plot_ttc_co2_alignment_with_ci(
