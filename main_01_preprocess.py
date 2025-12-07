@@ -15,7 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--recordings",
         type=str,
-        default=None,
+        default="all",
         help="Comma-separated recording ids (e.g., '01,02,03') or 'all'.",
     )
     parser.add_argument(
