@@ -23,6 +23,35 @@ def _load_L2_conf(rec_id: int) -> pd.DataFrame:
     raise FileNotFoundError(f"Missing L2 conflict file: {path}")
 
 
+def safe_nanmean_and_quantiles(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    对 arr (shape: n_events x n_time) 做 nanmean 和 10%、90% 分位数聚合。
+    若某个时间点全 NaN，则对应 mean/lower/upper 都设为 NaN，避免 RuntimeWarning。
+    """
+
+    if arr.size == 0:
+        return np.array([]), np.array([]), np.array([])
+
+    n_time = arr.shape[1]
+    mean = np.empty(n_time)
+    lower = np.empty(n_time)
+    upper = np.empty(n_time)
+
+    for j in range(n_time):
+        col = arr[:, j]
+        valid = col[~np.isnan(col)]
+        if valid.size == 0:
+            mean[j] = np.nan
+            lower[j] = np.nan
+            upper[j] = np.nan
+            continue
+        mean[j] = np.mean(valid)
+        lower[j] = np.quantile(valid, 0.1)
+        upper[j] = np.quantile(valid, 0.9)
+
+    return mean, lower, upper
+
+
 def aggregate_timeseries_over_episodes(
     rec_ids: Sequence[int],
     frame_rate: float = 25.0,
@@ -93,13 +122,8 @@ def aggregate_timeseries_over_episodes(
     ttc_arr = np.vstack(ttc_stack) if ttc_stack else np.empty((0, len(t_grid)))
     co2_arr = np.vstack(co2_stack) if co2_stack else np.empty((0, len(t_grid)))
 
-    def _stats(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        if arr.size == 0:
-            return np.array([]), np.array([]), np.array([])
-        return np.nanmean(arr, axis=0), np.nanquantile(arr, 0.1, axis=0), np.nanquantile(arr, 0.9, axis=0)
-
-    ttc_mean, ttc_low, ttc_up = _stats(ttc_arr)
-    co2_mean, co2_low, co2_up = _stats(co2_arr)
+    ttc_mean, ttc_low, ttc_up = safe_nanmean_and_quantiles(ttc_arr)
+    co2_mean, co2_low, co2_up = safe_nanmean_and_quantiles(co2_arr)
 
     return {
         "t_grid": t_grid,

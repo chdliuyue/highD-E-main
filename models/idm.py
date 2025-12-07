@@ -16,7 +16,7 @@ class IDM:
     baseline episodes in the dataset.
     """
 
-    def __init__(self, v0: float, T: float, s0: float, a: float, b: float, delta: float = 4.0) -> None:
+    def __init__(self, v0: float, T: float, s0: float, a_max: float, b_comf: float, delta: float = 4.0) -> None:
         """
         Initialize the IDM with standard parameters.
 
@@ -24,15 +24,15 @@ class IDM:
             v0: Desired speed (m/s).
             T: Desired time headway (s).
             s0: Minimum gap (m).
-            a: Maximum acceleration (m/s^2).
-            b: Comfortable deceleration (m/s^2).
+            a_max: Maximum acceleration (m/s^2).
+            b_comf: Comfortable deceleration (m/s^2).
             delta: Acceleration exponent, typically 4.
         """
         self.v0 = v0
         self.T = T
         self.s0 = s0
-        self.a = a
-        self.b = b
+        self.a_max = a_max
+        self.b_comf = b_comf
         self.delta = delta
 
     def _desired_gap(self, v: float, dv: float) -> float:
@@ -45,7 +45,7 @@ class IDM:
         Returns:
             Desired dynamic gap.
         """
-        return self.s0 + max(0.0, v * self.T + (v * dv) / (2.0 * np.sqrt(self.a * self.b)))
+        return self.s0 + max(0.0, v * self.T + (v * dv) / (2.0 * np.sqrt(self.a_max * self.b_comf)))
 
     def simulate(
         self,
@@ -71,18 +71,27 @@ class IDM:
         if len(t) == 0:
             return np.array([]), np.array([])
 
-        ghost_pos = np.zeros_like(t)
-        ghost_speed = np.zeros_like(t)
-        ghost_pos[0] = leader_pos[0] - s0_init
-        ghost_speed[0] = v_init
+        t = np.asarray(t, dtype=float)
+        leader_pos = np.asarray(leader_pos, dtype=float)
+        leader_speed = np.asarray(leader_speed, dtype=float)
 
-        for i in range(1, len(t)):
-            dt = t[i] - t[i - 1]
-            dx = leader_pos[i - 1] - ghost_pos[i - 1]
-            dv = ghost_speed[i - 1] - leader_speed[i - 1]
-            desired_gap = self._desired_gap(ghost_speed[i - 1], dv)
-            acc = self.a * (1 - (ghost_speed[i - 1] / self.v0) ** self.delta - (desired_gap / max(dx, 1e-3)) ** 2)
-            ghost_speed[i] = max(0.0, ghost_speed[i - 1] + acc * dt)
-            ghost_pos[i] = ghost_pos[i - 1] + ghost_speed[i - 1] * dt
+        dt_array = np.diff(t)
+        dt = float(np.mean(dt_array)) if len(dt_array) > 0 else 0.0
+
+        ghost_pos = np.zeros_like(t, dtype=float)
+        ghost_speed = np.zeros_like(t, dtype=float)
+        ghost_pos[0] = float(leader_pos[0] - s0_init)
+        ghost_speed[0] = float(v_init)
+
+        for i in range(len(t) - 1):
+            dt_step = float(t[i + 1] - t[i]) if len(t) > 1 else dt
+            gap = max(leader_pos[i] - ghost_pos[i], 1e-3)
+            dv = ghost_speed[i] - leader_speed[i]
+            desired_gap = self._desired_gap(ghost_speed[i], dv)
+            acc = self.a_max * (1 - (ghost_speed[i] / max(self.v0, 1e-3)) ** self.delta - (desired_gap / gap) ** 2)
+            acc = float(np.clip(acc, -self.b_comf, self.a_max))
+
+            ghost_speed[i + 1] = max(0.0, ghost_speed[i] + acc * dt_step)
+            ghost_pos[i + 1] = ghost_pos[i] + ghost_speed[i] * dt_step
 
         return ghost_pos, ghost_speed

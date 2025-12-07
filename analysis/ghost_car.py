@@ -36,7 +36,7 @@ def _extract_position_speed(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
     speed_col = next((c for c in speed_col_candidates if c in df.columns), None)
     pos = df[pos_col].to_numpy() if pos_col else np.zeros(len(df))
     speed = df[speed_col].to_numpy() if speed_col else np.zeros(len(df))
-    return pos, speed
+    return pos.astype(float), speed.astype(float)
 
 
 def _extract_leader_id(df_episode: pd.DataFrame) -> int | None:
@@ -47,6 +47,35 @@ def _extract_leader_id(df_episode: pd.DataFrame) -> int | None:
             if not non_zero.empty:
                 return int(non_zero.iloc[0])
     return None
+
+
+def _build_time_grid(df_episode: pd.DataFrame, frame_rate: float) -> np.ndarray:
+    if "time" in df_episode.columns:
+        t = df_episode["time"].to_numpy(dtype=float)
+        t = t - t.min()
+    else:
+        t = (df_episode["frame"] - df_episode["frame"].min()).to_numpy(dtype=float) / frame_rate
+    return t
+
+
+def _align_leader_to_time(df_leader: pd.DataFrame, t_ref: np.ndarray, frame_ref: np.ndarray, frame_rate: float) -> tuple[np.ndarray, np.ndarray]:
+    """Interpolate leader position and speed onto the ego time grid."""
+    if df_leader.empty:
+        return np.full_like(t_ref, np.nan, dtype=float), np.full_like(t_ref, np.nan, dtype=float)
+
+    leader_frames = df_leader["frame"].to_numpy(dtype=float)
+    leader_t = (leader_frames - frame_ref.min()) / frame_rate
+    s_raw, v_raw = _extract_position_speed(df_leader)
+
+    # Use edge values outside leader support to avoid NaNs at boundaries
+    s_interp = np.interp(t_ref, leader_t, s_raw, left=np.nan, right=np.nan)
+    v_interp = np.interp(t_ref, leader_t, v_raw, left=np.nan, right=np.nan)
+
+    # Fill potential NaNs (e.g., partial tracking) with nearest observed values
+    s_series = pd.Series(s_interp).fillna(method="ffill").fillna(method="bfill")
+    v_series = pd.Series(v_interp).fillna(method="ffill").fillna(method="bfill")
+
+    return s_series.to_numpy(dtype=float), v_series.to_numpy(dtype=float)
 
 
 def simulate_ghost_car(
@@ -72,35 +101,33 @@ def simulate_ghost_car(
     end_frame = int(event_row.get("end_frame", event_row.get("conf_end_frame", 0)))
 
     df_episode = df_l1[(df_l1["frame"] >= start_frame) & (df_l1["frame"] <= end_frame) & (df_l1["trackId"] == ego_id)]
+    df_episode = df_episode.sort_values("frame")
     if df_episode.empty:
         return {}
 
     leader_id = event_row.get("leader_id") or _extract_leader_id(df_episode)
     df_leader = pd.DataFrame()
     if leader_id is not None:
-        df_leader = df_l1[(df_l1["frame"].isin(df_episode["frame"])) & (df_l1["trackId"] == leader_id)]
+        df_leader = df_l1[(df_l1["frame"].isin(df_episode["frame"])) & (df_l1["trackId"] == leader_id)].sort_values("frame")
 
-    time_col = "time" if "time" in df_episode.columns else None
-    if time_col:
-        t = df_episode[time_col].to_numpy()
-        t = t - t.min()
-    else:
-        t = (df_episode["frame"] - df_episode["frame"].min()).to_numpy() / frame_rate
-
+    t = _build_time_grid(df_episode, frame_rate)
     s_real, v_real = _extract_position_speed(df_episode)
-    if not df_leader.empty:
-        s_leader, v_leader = _extract_position_speed(df_leader)
-    else:
-        s_leader = s_real + np.nan_to_num(event_row.get("gap_init", 15.0))
-        v_leader = v_real
+
+    s_leader, v_leader = _align_leader_to_time(df_leader, t, df_episode["frame"].to_numpy(), frame_rate)
+    if np.all(np.isnan(s_leader)):
+        fallback_gap = float(event_row.get("gap_init", 15.0))
+        s_leader = s_real + fallback_gap
+        v_leader = v_real.copy()
+
+    s0_init = float(event_row.get("s0_init", max(s_leader[0] - s_real[0], 2.0)))
+    v_init = float(v_real[0]) if len(v_real) > 0 else 0.0
 
     idm = IDM(**idm_params)
-    s0_init = float(event_row.get("s0_init", 5.0))
-    v_init = float(v_real[0]) if len(v_real) > 0 else 0.0
     s_ghost, v_ghost = idm.simulate(t, s_leader, v_leader, s0_init=s0_init, v_init=v_init)
 
-    a_real = np.gradient(v_real, t) if len(t) > 1 else np.zeros_like(v_real)
-    a_ghost = np.gradient(v_ghost, t) if len(t) > 1 else np.zeros_like(v_ghost)
+    dt = float(np.mean(np.diff(t))) if len(t) > 1 else 0.0
+    a_real = np.concatenate([[0.0], np.diff(v_real) / dt]) if dt > 0 else np.zeros_like(v_real)
+    a_ghost = np.concatenate([[0.0], np.diff(v_ghost) / dt]) if dt > 0 else np.zeros_like(v_ghost)
 
     return {
         "t": t,
@@ -130,7 +157,7 @@ def plot_ghost_car_validation(data: Dict[str, np.ndarray], save_path: Path | Non
     axes[0].plot(data["s_real"], t, label="Real", color="tab:blue")
     axes[0].plot(data["s_ghost"], t, label="Ghost (IDM)", color="tab:orange", linestyle="--")
     axes[0].invert_yaxis()
-    axes[0].set_xlabel("Longitudinal position")
+    axes[0].set_xlabel("Longitudinal position [m]")
     axes[0].set_ylabel("Time [s]")
     axes[0].set_title("Trajectory (s-t)")
     axes[0].legend()
@@ -138,9 +165,9 @@ def plot_ghost_car_validation(data: Dict[str, np.ndarray], save_path: Path | Non
     ax1 = axes[1]
     ax2 = ax1.twinx()
     ax1.plot(t, data["v_real"], label="v real", color="tab:blue")
-    ax1.plot(t, data["v_ghost"], label="v ghost", color="tab:blue", linestyle="--")
+    ax1.plot(t, data["v_ghost"], label="v ghost", color="tab:orange", linestyle="--")
     ax2.plot(t, data["a_real"], label="a real", color="tab:red")
-    ax2.plot(t, data["a_ghost"], label="a ghost", color="tab:red", linestyle="--")
+    ax2.plot(t, data["a_ghost"], label="a ghost", color="tab:red", linestyle=":")
     ax1.set_xlabel("Time [s]")
     ax1.set_ylabel("Speed [m/s]", color="tab:blue")
     ax2.set_ylabel("Acceleration [m/s²]", color="tab:red")
