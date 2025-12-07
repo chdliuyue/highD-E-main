@@ -10,7 +10,7 @@ def main() -> None:
     parser.add_argument(
         "--recordings",
         type=str,
-        default="01",
+        default="all",
         help="Recordings to explore, comma-separated like '01,02,03' or 'all'.",
     )
     args = parser.parse_args()
