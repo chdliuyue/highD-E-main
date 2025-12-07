@@ -94,7 +94,7 @@ def _select_closest_baseline(
         candidates = candidates[candidates["duration"].sub(dur_conf).abs() <= dur_tolerance]
     if candidates.empty:
         candidates = df_base[df_base.get("veh_class") == veh_class]
-        if candidates.empty():
+        if candidates.empty:
             return None
 
     same_rec = candidates[candidates["rec_id"] == rec_id]
