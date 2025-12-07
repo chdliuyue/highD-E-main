@@ -109,18 +109,26 @@ def compute_mec_per_km(df_mec: pd.DataFrame) -> pd.DataFrame:
     """Augment MEC dataframe with per-km energy metrics."""
 
     df = df_mec.copy()
+    duration = df.get("conf_duration", df.get("duration"))
     df["dist_real"] = _ensure_distance(df)
 
     dist_km = df["dist_real"] / 1000.0
     dist_km = dist_km.where(dist_km > 1e-3)  # avoid division explosions
 
-    for col in ["E_real_CO2", "E_base_CO2"]:
-        if col not in df:
-            df[col] = np.nan
+    def _energy_total(col_total: str, col_per_s: str) -> pd.Series:
+        if col_total in df:
+            return df[col_total]
+        if col_per_s in df and duration is not None:
+            return df[col_per_s] * duration
+        return pd.Series(np.nan, index=df.index)
+
+    df["E_real_CO2"] = _energy_total("E_real_CO2", "E_real_CO2_per_s")
+    df["E_base_CO2"] = _energy_total("E_base_CO2", "E_base_CO2_per_s")
+    df["MEC_CO2"] = _energy_total("MEC_CO2", "MEC_CO2_per_s")
 
     df["E_real_CO2_per_km"] = df["E_real_CO2"] / dist_km
     df["E_base_CO2_per_km"] = df["E_base_CO2"] / dist_km
-    df["MEC_CO2_per_km"] = df["E_real_CO2_per_km"] - df["E_base_CO2_per_km"]
+    df["MEC_CO2_per_km"] = df["MEC_CO2"] / dist_km
     return df
 
 
