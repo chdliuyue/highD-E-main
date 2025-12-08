@@ -190,6 +190,12 @@ def match_baseline_for_conflicts(
     if df_conf.empty:
         return pd.DataFrame()
 
+    # 预先缓存 baseline 事件的能耗指标，避免在每个冲突事件匹配时重复计算。
+    base_metrics_cache: dict[int, dict] = {}
+    if not df_base.empty:
+        for base_idx, base_row in df_base.iterrows():
+            base_metrics_cache[base_idx] = compute_energy_for_episode(df_l1, base_row)
+
     records = []
     for event_id, row in df_conf.reset_index().iterrows():
         rec_id = int(row.get("recordingId", row.get("rec_id", -1)))
@@ -201,22 +207,23 @@ def match_baseline_for_conflicts(
         duration_conf = conf_energy["duration"]
         mean_v_conf = conf_energy["mean_v"]
 
-        df_candidates = df_base.copy()
+        df_candidates = df_base
         if not df_candidates.empty and "veh_class" in df_candidates.columns:
             df_candidates = df_candidates[df_candidates["veh_class"] == veh_class]
-        if not df_candidates.empty and "duration" in df_candidates.columns and not np.isnan(duration_conf):
-            dur_base = df_candidates["duration"]
-            df_candidates = df_candidates[np.abs(dur_base - duration_conf) <= 2.0]
+        if not df_candidates.empty and not np.isnan(duration_conf):
+            duration_series = df_candidates.index.to_series().map(
+                lambda idx: base_metrics_cache.get(idx, {}).get("duration", np.nan)
+            )
+            df_candidates = df_candidates[np.abs(duration_series - duration_conf) <= 2.0]
 
         best_candidate = None
         best_dist = None
-        base_metrics_cache = {}
 
-        for _, base_row in df_candidates.iterrows():
-            base_key = base_row.name
-            if base_key not in base_metrics_cache:
-                base_metrics_cache[base_key] = compute_energy_for_episode(df_l1, base_row)
-            base_energy = base_metrics_cache[base_key]
+        for base_idx, base_row in df_candidates.iterrows():
+            base_energy = base_metrics_cache.get(base_idx)
+            if base_energy is None:
+                base_energy = compute_energy_for_episode(df_l1, base_row)
+                base_metrics_cache[base_idx] = base_energy
 
             duration_base = base_energy["duration"]
             mean_v_base = base_energy["mean_v"]
